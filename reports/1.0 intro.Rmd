@@ -1,0 +1,36 @@
+# R&D Productivity in the Pharmaceutical Industry
+Biomedical innovation is complex, risky, expensive, and requires years of translational research and clinical testing, and most stakeholders agree that the attrition rate in drug development is unsustainably high. Capitalized R&D investments needed to bring a new drug to market ranged from $600 million upwards to $2.8 billion, with an estimated median of $985 million (95% CI, $683.6 million - $1228.9 million)[@woutersEstimatedResearchDevelopment2020a]. Still, less than 10% of the drugs tested in Phase I will find regulatory approval for a leading indication. According to a study conducted by Informa Pharma Intelligence, the overall likelihood of regulatory approval from 2011-2020 for some 1,779 companies was 7.9%. [@hayClinicalDevelopmentSuccess2014]  
+
+In fact, drug development productivity has fallen steadily over the past 50 years. An effect known as "Eroom's Law" [@scannellDiagnosingDeclinePharmaceutical2012a]., the reverse of Moore's Law, suggests that the cost of developing new drugs has doubled approximately every nine years since the 1950s. 
+Within this context, estimating drug development risk, or more precisely the probability of technical and regulatory success (PTRS), is essential for investigators, clinical trial planners, and investors. Unbiased and accurate estimates of PTRS reduces uncertainty in the drug development process, directs portfolio investment decisions, and improves resource planning and budgeting. As such, the PTRS is a key driver of drug market readiness and return on investment.
+
+# Current Approach to Drug Approval Estimation
+The prevailing method of estimating PTRS in the pharmaceutical industry derives from three main inputs: (1) historical benchmarks driven by the current phase and therapeutic category, (2) expert input from Key Opinion Leaders (KOLs), and (3) statistical analyses performed by internal R&D departments. 
+
+Yet, such estimates tend to rely on relatively small samples curated by the pharmaceutical industry and are subject to potential selection bias. [@woutersEstimatedResearchDevelopment2020] Though KOLs may bring years of experience and regulatory acumen, such 'opinions' cannot be systematically revised for changes in the regulatory or competitive environment and do not allow for a documented, well-vetted strategic and holistic analysis of the risks and regulatory considerations. [@wongEstimatingProbabilitiesSuccess2020] 
+
+# Drug Approval and Risk Assessment (DARA)     
+DARA is a decision support offering that brings artificial intelligence to drug development risk and regulatory approval estimation. Designed for executives, investors, sponsors and investigators, DARA supports three of the main data science modalities: description, prediction, and prescription.
+
+in mind, DARA Dashboard visualizations graphically depict the causal factors of regulatory success. Sponsors and investigators   Inference and predictive analytics delivered via  are supported by two components: Dara-Dashboard delivered via visualization  this question, Predict-FDA brings machine learning, causal discovery, and deep learning methods to drug development risk inference and regulatory approval prediction. 
+will apply machine learning and deep learning techniques to drug development risk inference, and approval prediction. This project is motivated by four question:    
+
+1.	**Drug Development Risk Inference**: Can machine learning reveal the leading technical and regulatory success indicators?                
+
+2.	**Drug Development Risk Prediction:** To what degree can generalized linear, probabilistic, instance-based, tree-based, and ensemble-based machine learning algorithms effectively predict drug development risk and PTRS? Precisely, we predict:      
+
+a.	P1APP: Likelihood of regulatory approval from phase 1.        
+b.	P2APP:  Likelihood of regulatory approval from phase 2.                
+c.	P3APP: Likelihood of regulatory approval from phase 3.            
+
+
+3.	**Drug Discovery Risk by Indication**: Is drug development risk for some indications fundamentally and structurally different from other indications? Here, we attempt to improve predictive performance with indication-specific models. Statistically significant differences in predictive performance might suggest that risk estimation can be structurally different for some indications.         
+
+4.	 **Deep Learning and Drug Development Risk:** Can non-linear, deep learning methods improve PTRS prediction? Here, we attempt to enhance prediction performance with:  
+
+  a. Multi-Layer Perceptrons, 
+  b. Convolutional Neural Networks, 
+  c. Bayesian Neural Networks, 
+  d. Attention-Based Tabular Inference  We will also probe deep learning-based inference with TABNET [6], a recent attention-based deep learning approach that purports to offer interpretable learning of structured data.    
+
+Prediction performance will be measured using the Area Under the Receiver Operating Characteristic Curve (AUC) metric.      

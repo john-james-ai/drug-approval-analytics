@@ -1,0 +1,10 @@
+# Exploratory Data Analysis  (EDA)
+
+This EDA summarizes the characteristics, quality, and utility of the following data sources:
+
+- Aggregate Content of ClinicalTrials.gov (AACT) [@AACTDatabaseClinical]       
+- Drugs@FDA - U.S. Food & Drug Administration Approved Drugs [@DrugsFDAFDAApproved]
+
+## AACT
+
+AACT is a publicly available relational database that contains all information (protocol and result data elements) about every study registered in ClinicalTrials.gov [@]. 
