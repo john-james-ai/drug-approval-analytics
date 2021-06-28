@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Monday, June 21st 2021, 3:17:33 pm                                #
-# Modified : Sunday, June 27th 2021, 5:36:24 am                                #
+# Modified : Monday, June 28th 2021, 12:10:04 am                               #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -24,16 +24,16 @@ from psycopg2 import connect, pool, sql, DatabaseError
 import pandas as pd
 import numpy as np
 
-from configs.config import get_config
+from configs.config import DataSourceConfig, get_config
 
 class DBCon:
 
     __connection_pool = None
 
     @staticmethod
-    def initialise(config_section='aactdb'):
+    def initialise(datasource):
         print("Initializing database. Defaults to the AACT database")
-        credentials = get_config(section=config_section)
+        credentials = DataSourceConfig.get_config(datasource=datasource)
         DBCon.__connection_pool = pool.SimpleConnectionPool(1, 10, **credentials)
 
     @staticmethod

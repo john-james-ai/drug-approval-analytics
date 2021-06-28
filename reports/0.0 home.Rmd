@@ -1,9 +1,9 @@
 ---
-title: "Predict FDA Drug Approvals with AI"
+title: "Drug Approval and Risk Assessment (DARA)"
 author: "John James john.james@nov8.ai"
 date: '`r format(Sys.time(), "%d %B, %Y")`'
 output: 
-  rmarkdown::html_document:
+  html_document:
     toc: true
     toc_depth: 4
     toc_float: true
@@ -64,7 +64,7 @@ sys.path.append(home)
 ```
 
 
-```{r child = '1.0 intro.Rmd'}
+```{r child = '2.0 data.Rmd'}
 ```
 
 

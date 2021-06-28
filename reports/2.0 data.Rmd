@@ -1,0 +1,30 @@
+# Data 
+Six publicly available data sources (`r kfigr::figr(label = "data_sources", prefix = TRUE, link = TRUE, type="Table")`) provided clinical trial, drug characteristics, target indication and disease information for this project.
+
+`r kfigr::figr(label = "data_sources", prefix = TRUE, link = TRUE, type="Table")`: Data Sources for Drug Approval and Risk Assessment Project
+```{r data_sources}
+data_sources_filename = "./figures/datasets.csv"
+sources = read.csv(data_sources_filename, header=TRUE)
+knitr::kable(sources) %>%
+  kable_styling(bootstrap_options="striped", full_width=TRUE, position="center")
+```
+
+
+**Aggregate Content of ClinicalTrials.gov (AACT)**      
+The Clinical Trials Transformation Initiative (CTTI) Aggregate Content of ClinicalTrials.gov (AACT) [@AACTDatabaseClinical] database contains every clinical trial registered in ClinicalTrials.gov. Protocol and results data are provided for over 380,000 clinical trials conducted in all 50 states and 220 countries since February 2000.
+
+**Drugs@FDA**             
+Drugs@FDA [@DrugsFDAFDAApproved] includes prescribing information, approved label/indication, regulatory data, and FDA staff review data for drugs and biologics approved for human use by the FDA Center for Drug Evaluation and Research (CDER).    
+
+**PurpleBook**           
+The PurpleBook [@PurpleBookDatabase] contains FDA-licensed biological products regulated by the CDER. It also includes allergenics, cellular, gene therapy, hematologic and vaccine products regulated by the Center for Biologics Evaluation and Research (CBER).     
+
+**OpenFDA Drug Label**     
+OpenFDA Drug Label [@OpenFDA] data set contains drug manufacturer, class,  route of administration, indication, substance, and mechanism of action information for prescription drugs approved from June 2009 to the present.    
+
+**OpenTarget**      
+The OpenTarget [@OpenTargetsPlatform] platform provides several drugs, disease, and drug target data sets for academic and commercial purposes. Disease/Phenotype, Target, Drug, and Target-Disease associations assist in drug target identification and prioritization.
+
+**DrugBank**      
+DrugBank [@wishartDrugBankMajorUpdate2018]  is an online database that combines detailed chemical, pharmacological, and pharmaceutical data with comprehensive drug target information. The latest release contains over 14,500 drug entries, comprised of small molecule drugs, biologics, and experimental (discovery-phase) drugs. Each entry has over 200 features containing chemical and target/protein data.
+

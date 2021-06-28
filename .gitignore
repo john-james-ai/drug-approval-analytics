@@ -6,7 +6,10 @@ __pycache__/
 *.so
 
 # Credentials
-*/config.ini
+*/*.ini
+
+# Notes
+notes/
 
 # Admin
 admin/

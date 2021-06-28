@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Sunday, June 27th 2021, 1:56:10 am                                #
-# Modified : Sunday, June 27th 2021, 6:42:14 am                                #
+# Modified : Sunday, June 27th 2021, 5:05:29 pm                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -28,7 +28,7 @@ from bs4 import BeautifulSoup
 from configs.config import get_config
 
 class Scraper:
-    '''Obtains data from a website'''
+    '''Scrapes data from a website'''
 
     def __init__(self, config_section):         
         self.config = get_config(config_section)
@@ -43,14 +43,17 @@ class Scraper:
         link = self.baseurl + eval(self.config["find"])        
         return link       
 
-    def download_unzip_file(self, destination):        
+    def download_unzip_file(self, destination, force=False):        
         destination = os.path.join(get_config("directories")["raw"],destination)
-        link = self.get_link()        
-        print("Downloading data from {url}".format(url=link), end=" ")
-        results = urlopen(link)
-        zipfile = ZipFile(BytesIO(results.read()))
-        zipfile.extractall(destination)
-        print("...complete!")
+        if (os.path.exists(destination) and force is True) | \
+            (not os.path.exists(destination)):
+            link = self.get_link()        
+            print("Downloading data from {url}".format(url=link), end=" ")
+            results = urlopen(link)
+            zipfile = ZipFile(BytesIO(results.read()))
+            zipfile.extractall(destination)
+            print("...complete!")
+        print("File download complete.")
 
 class Downloader:
     """Downloads files from website when urls are known"""
@@ -58,16 +61,18 @@ class Downloader:
         self.baseurl = get_config(config_section)["baseurl"]
         self.filenames = get_config(config_section + "_files")
 
-    def download_files(self, destination):
+    def download_files(self, destination, force=False):
         destination = os.path.join(get_config("directories")["raw"],destination)
+        if (os.path.exists(destination) and force is True) | (not os.path.exists(destination)):
 
-        for key, filename in self.filenames.items():            
-            url = self.baseurl + filename
-            print("Downloading data from {url}".format(url=url), end=" ")
-            results = requests.get(url)
-            zipfile = ZipFile(BytesIO(results.content))
-            zipfile.extractall(destination)
-            print("...complete!")
+            for key, filename in self.filenames.items():            
+                url = self.baseurl + filename
+                print("Downloading data from {url}".format(url=url), end=" ")
+                results = requests.get(url)
+                zipfile = ZipFile(BytesIO(results.content))
+                zipfile.extractall(destination)
+                print("...complete!")
+        print("File download complete.")
 
 
 
