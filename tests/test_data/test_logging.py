@@ -3,7 +3,7 @@
 #==============================================================================#
 # Project  : Predict-FDA                                                       #
 # Version  : 0.1.0                                                             #
-# File     : \config.py                                                        #
+# File     : \test_logging.py                                                  #
 # Language : Python 3.9.5                                                      #
 # -----------------------------------------------------------------------------#
 # Author   : John James                                                        #
@@ -11,40 +11,29 @@
 # Email    : john.james@nov8.ai                                                #
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
-# Created  : Monday, June 21st 2021, 3:59:38 am                                #
-# Modified : Wednesday, June 30th 2021, 12:31:47 am                            #
+# Created  : Wednesday, June 30th 2021, 10:25:41 am                            #
+# Modified : Wednesday, June 30th 2021, 10:40:39 am                            #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
 # Copyright: (c) 2021 nov8.ai                                                  #
 #==============================================================================#
-from abc import ABC, abstractmethod
-from configparser import SafeConfigParser
+import pytest
 
-class Config():
-    """Provides access to data source configurations """
+from src.logging import Logger
 
-    filename = "configs\config.ini"    
+@pytest.mark.logging
+class LoggingTests:
 
-    def __init__(self):
-        pass
-        
+    def test_logging(self):        
+        logo = Logger(__name__)
+        logger = logo.get_logger()
+        logger.info("This is an FYI")
+        logger.debug("Uh oh, we have a bug")
+        logger.warning("Consider yourself on notice")
+        logger.error("Ok, this is an ERROR")
 
-    def get_config(self, section):
-        # create a parser
-        filename = Config.filename
-        parser = SafeConfigParser()
-        # read config file
-        parser.read(filename)
 
-        # Get configuration
-        config = {}
-        if parser.has_section(section):
-            params = parser.items(section)
-            for param in params:
-                config[param[0]] = param[1]
-        else:
-            raise Exception('Section {0} not found in the {1} file'.format(section, filename))
 
-        return config
+
 

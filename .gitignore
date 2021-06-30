@@ -11,6 +11,9 @@ __pycache__/
 # Notes
 notes/
 
+# Logs
+logs/
+
 # Admin
 admin/
 
