@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Tuesday, June 29th 2021, 6:55:06 pm                               #
-# Modified : Wednesday, June 30th 2021, 1:15:40 pm                             #
+# Modified : Thursday, July 1st 2021, 11:01:57 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -54,10 +54,10 @@ class FTPExtractor(Extractor):
 
     def __init__(self, datasource):
         super(ZipExtractor, self).__init__(datasource)
-        config = self.configuration.get_config(self.datasource)  
+        config = self.configuration.get(self.datasource)  
         self.baseurl = config["baseurl"]
         self.destination = config["basedir"]
-        self.filenames = self.configuration.get_config(self.datasource + '_files')
+        self.filenames = self.configuration.get(self.datasource + '_files')
 
     def extract(self, force=False):
 
@@ -82,7 +82,7 @@ class WebExtractor(Extractor):
 
     def __init__(self, datasource):
         super(WebExtractor, self).__init__(datasource)
-        self.config = self.configuration.get_config(self.datasource)  
+        self.config = self.configuration.get(self.datasource)  
         self.baseurl = self.config["baseurl"]
         self.downloadurl = self.config["downloadurl"]
         self.destination = self.config["basedir"]
@@ -121,10 +121,10 @@ class ZipExtractor(Extractor):
 
     def __init__(self, datasource):
         super(ZipExtractor, self).__init__(datasource)
-        config = self.configuration.get_config(self.datasource)  
+        config = self.configuration.get(self.datasource)  
         self.baseurl = config["baseurl"]
         self.destination = config["basedir"]
-        self.filenames = self.configuration.get_config(self.datasource + '_files')
+        self.filenames = self.configuration.get(self.datasource + '_files')
 
     def extract(self, force=False):
 

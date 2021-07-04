@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Sunday, June 27th 2021, 5:00:34 pm                                #
-# Modified : Wednesday, June 30th 2021, 1:00:12 am                             #
+# Modified : Thursday, July 1st 2021, 11:46:49 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -33,24 +33,13 @@ from zipfile import ZipFile
 from bs4 import BeautifulSoup
 
 from configs.config import Config
-
+from .agents import Agent
 # -----------------------------------------------------------------------------#
-class Extractor(ABC):
-    """Base class for Data Extractors."""
-
-    def __init__(self, datasource, **kwargs):
-        self._datasource = datasource
-
-    @abstractmethod
-    def extract(self, force=False):
-        pass
-
-# -----------------------------------------------------------------------------#
-class WebExtractor(Extractor):
+class WebExtractor(Agent):
     """Extracts data via scraping"""
 
-    def __init__(self, datasource):
-        super(WebExtractor, self).__init__(datasource)        
+    def __init__(self):    
+        pass
 
     def _extractfile(self, object):
         link = self._datasource.download_url + object
@@ -61,8 +50,8 @@ class WebExtractor(Extractor):
         print("...complete!")        
 
 
-    def extract(self, force=False):
-        if (os.path.exists(self._datasource.download_dir)) & (force is False):
+    def execute(self, datasource):
+        if (os.path.exists(self._datasource.download_dir)):
             print("Directory exists. To overwrite, set force=True")
             return
         
@@ -81,15 +70,15 @@ class WebExtractor(Extractor):
          
 
 # -----------------------------------------------------------------------------#
-class ZipExtractor(Extractor):
+class ZipExtractor(Agent):
     """Downloads data from static website."""
 
-    def __init__(self, datasource):
-        super(ZipExtractor, self).__init__(datasource)        
+    def __init__(self):
+        pass
 
-    def extract(self, force=False):
+    def execute(self, datasource):
 
-        if (os.path.exists(self._datasource.download_dir)) & (force is False):
+        if (os.path.exists(datasource.download_location)):
             return
         
         if not os.path.exists(self._datasource.download_dir):

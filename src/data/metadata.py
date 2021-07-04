@@ -3,7 +3,7 @@
 #==============================================================================#
 # Project  : Predict-FDA                                                       #
 # Version  : 0.1.0                                                             #
-# File     : \test_aact.py                                                     #
+# File     : \metadata.py                                                      #
 # Language : Python 3.9.5                                                      #
 # -----------------------------------------------------------------------------#
 # Author   : John James                                                        #
@@ -11,36 +11,38 @@
 # Email    : john.james@nov8.ai                                                #
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
-# Created  : Saturday, June 26th 2021, 1:48:44 pm                              #
-# Modified : Monday, June 28th 2021, 2:21:00 am                                #
+# Created  : Thursday, July 1st 2021, 7:38:20 pm                               #
+# Modified : Friday, July 2nd 2021, 12:48:26 am                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
 # Copyright: (c) 2021 nov8.ai                                                  #
 #==============================================================================#
-import pytest, os
+#%%
+import os, json
+from datetime import datetime
 
 from configs.config import Config
-from src.data.extract import ZipExtractor
+# -----------------------------------------------------------------------------#
+class Metadata:
+    """Creates and manages metadata for the database and pipeline."""
+    def __init__(self, config):
+        self._config = config
+        self._metadata_dir = self._config.get('directories')['metadata']
 
-@pytest.mark.extract
-class ExtractorTests:
-
-    def test_zip_extractor(self):        
-        configerator = Config()
-        config = configerator.get_config('openfda_label')
-        destination = config['basedir']
-
-        extractor = ZipExtractor(datasource='openfda_label')       
-        if os.path.exists(destination):
-            extractor.extract(force=True)
-        else:
-            extractor.extract()
-
-        files  = os.listdir(destination)
-        assert(len(files) == 10)
-
-
-
+    def save(self, source, name, metadata):
+        """Saves the metadata in dictionary format for each dataobject."""        
+        metadata_file = os.path.join(self._metadata_dir, source, name + '.json')
+        json_string = json.dumps(metadata)
+        json_file = open(metadata_file, "w")
+        json_file.write(json_string)
+        json_file.close()
+        
+    def read(self, source, name):
+        """Reads metadata from file."""
+        metadata_file = os.path.join(self._metadata_dir, source, name + '.json')
+        json_file = open(metadata_file, "r")
+        json_string = json_file.read()
+        return json.loads(json_string)
 
 

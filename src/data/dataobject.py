@@ -3,7 +3,7 @@
 #==============================================================================#
 # Project  : Predict-FDA                                                       #
 # Version  : 0.1.0                                                             #
-# File     : \test_aact.py                                                     #
+# File     : \dataobject.py                                                    #
 # Language : Python 3.9.5                                                      #
 # -----------------------------------------------------------------------------#
 # Author   : John James                                                        #
@@ -11,35 +11,36 @@
 # Email    : john.james@nov8.ai                                                #
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
-# Created  : Saturday, June 26th 2021, 1:48:44 pm                              #
-# Modified : Friday, July 2nd 2021, 11:40:58 am                                #
+# Created  : Thursday, July 1st 2021, 11:55:27 am                              #
+# Modified : Sunday, July 4th 2021, 4:57:31 pm                                 #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
 # Copyright: (c) 2021 nov8.ai                                                  #
 #==============================================================================#
-import pytest
-from configs.config import Config
+from abc import ABC, abstractmethod
+from datetime import date, datetime
 
-@pytest.mark.config
-class ConfigTests:
+import pandas as pd
 
-    def test_config_datasource(self):        
-        config = Config()
-        credentials = config.get('aact_credentials')
-        assert isinstance(credentials, dict)
-        assert credentials['database'] == 'AACT'
-        assert credentials['user'] == 'postgres'
-        assert credentials['host'] == 'localhost'
-        assert credentials['port'] == '5432'
+# -----------------------------------------------------------------------------#
+class DataObject(ABC):
+    """Definitional unit of data."""
+    def __init__(self, source, name, **kwargs):
+        self.source = source
+        self.name = name
+        self._data = None    
+        self._profiles = {}     
 
-    def test_config_get_options(self):
-        config = Config()
-        website=config.get('aact', 'website')
-        assert website == "https://aact.ctti-clinicaltrials.org/snapshots", "Options doesn't work"
+        self._state = 'Created'
+        self._state_datetime = datetime.now()        
+
+    def get_data(self):
+        return self._data 
+
+    def set_data(self, x):
+        self._data = x
+
+
 
         
-
-
-
-

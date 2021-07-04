@@ -255,16 +255,14 @@ div.tocify {
 
 <h1 class="title toc-ignore">Drug Approval and Risk Assessment (DARA)</h1>
 <h4 class="author">John James <a href="mailto:john.james@nov8.ai" class="email">john.james@nov8.ai</a></h4>
-<h4 class="date">27 June, 2021</h4>
+<h4 class="date">30 June, 2021</h4>
 
 </div>
 
 
-<div id="data-acquisition" class="section level1">
-<h1>Data Acquisition</h1>
-<div id="data-sources" class="section level2">
-<h2>Data Sources</h2>
-<p>The data sources for this project (<a href="#data_sources">Table 1</a>) include ClinicalTrials.gov data provided by the Clinical Trials Transformation Initiative, FDA-approved drugs and biologics, drug label and prescribed use information, as well as drug targets.</p>
+<div id="data" class="section level1">
+<h1>Data</h1>
+<p>Six publicly available data sources (<a href="#data_sources">Table 1</a>) provided clinical trial, drug characteristics, target indication and disease information for this project.</p>
 <a href="#data_sources">Table 1</a>: Data Sources for Drug Approval and Risk Assessment Project
 <table class="table table-striped" style="margin-left: auto; margin-right: auto;">
 <thead>
@@ -377,12 +375,658 @@ The Clinical Trials Transformation Initiative (CTTI) Aggregate Content of Clinic
 <p><strong>PurpleBook</strong><br />
 The PurpleBook <span class="citation">[3]</span> contains FDA-licensed biological products regulated by the CDER. It also includes allergenics, cellular, gene therapy, hematologic and vaccine products regulated by the Center for Biologics Evaluation and Research (CBER).</p>
 <p><strong>OpenFDA Drug Label</strong><br />
-OpenFDA Drug Label <span class="citation">[4]</span> dataset contains drug manufacturer, class, route of administration, indication, substance, and mechanism of action information for prescription drugs approved from June 2009 to the present.</p>
+OpenFDA Drug Label <span class="citation">[4]</span> data set contains drug manufacturer, class, route of administration, indication, substance, and mechanism of action information for prescription drugs approved from June 2009 to the present.</p>
 <p><strong>OpenTarget</strong><br />
-The OpenTarget <span class="citation">[5]</span> platform provides several drugs, disease, and drug target datasets for academic and commercial purposes. Disease/Phenotype, Target, Drug, and Target-Disease associations assist in drug target identification and prioritization.</p>
+The OpenTarget <span class="citation">[5]</span> platform provides several drugs, disease, and drug target data sets for academic and commercial purposes. Disease/Phenotype, Target, Drug, and Target-Disease associations assist in drug target identification and prioritization.</p>
 <p><strong>DrugBank</strong><br />
 DrugBank <span class="citation">[6]</span> is an online database that combines detailed chemical, pharmacological, and pharmaceutical data with comprehensive drug target information. The latest release contains over 14,500 drug entries, comprised of small molecule drugs, biologics, and experimental (discovery-phase) drugs. Each entry has over 200 features containing chemical and target/protein data.</p>
+<p>The sections that follow document an exploratory data analysis to discover extant patterns, anomalies and outliers in the data.</p>
+<div id="aggregate-content-of-clinicaltrials.gov-aact" class="section level2">
+<h2>Aggregate Content of ClinicalTrials.gov (AACT)</h2>
+<p>The AACT database is comprised of 53 tables stored in a Postgres relational database. Appendix A. lists</p>
 </div>
+</div>
+<div id="appendix-a" class="section level1">
+<h1>Appendix A</h1>
+AACT Database <a href="#aact_tables">Table 2</a>: Aggregate Content of ClinicalTrials.gov (AACT) Tables
+<table class="table table-striped" style="margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:left;">
+table
+</th>
+<th style="text-align:left;">
+description
+</th>
+<th style="text-align:left;">
+rows.per.study
+</th>
+<th style="text-align:left;">
+domain
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:left;">
+baseline_counts
+</td>
+<td style="text-align:left;">
+Sample size at baseline for each study group; usually a count of participants but can represent other units of measure such as ‘hands,’ ‘hips,’ etc.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+baseline_measurements
+</td>
+<td style="text-align:left;">
+Summaries of demographic &amp; baseline measures collected by arm or comparison group and for the entire population of participants in the clinical study. 
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+brief_summaries
+</td>
+<td style="text-align:left;">
+A single text column that provides a brief description of the study.
+</td>
+<td style="text-align:left;">
+one
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+browse_conditions
+</td>
+<td style="text-align:left;">
+NLM uses an internal algorithm to assess the data entered for a study and creates a list of standard MeSH terms that describe the condition(s) being addressed by the clinical trial. This table provides the results of NLM’s assessment
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+browse_interventions
+</td>
+<td style="text-align:left;">
+NLM uses an internal algorithm to assess the data entered for a study and creates a list of standard MeSH terms that describe the intervention(s) being addressed by the clinical trial. This table provides the results of NLM’s assessment
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+calculated_values
+</td>
+<td style="text-align:left;">
+An AACT-provided table that contains info that’s been calculated from the information received from ClinicalTrials.gov. For example, number_of_facilities and actual_duration are provided in this table.
+</td>
+<td style="text-align:left;">
+one
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+categories
+</td>
+<td style="text-align:left;">
+Provides a way to gather studies that fit a particular category, such as COVID-19 studies. It contains a study id and a name. The name reflects the search term used to find the study.
+</td>
+<td style="text-align:left;">
+one
+</td>
+<td style="text-align:left;">
+n/a
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+central_contacts
+</td>
+<td style="text-align:left;">
+Contact info for people (primary &amp; backup) who can answer questions concerning enrollment at any location of the study.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+conditions
+</td>
+<td style="text-align:left;">
+Name(s) of the disease(s) or condition(s) studied in the clinical study, or the focus of the clinical study. Can include NLM’s Medical Subject Heading (MeSH)-controlled vocabulary terms.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+countries
+</td>
+<td style="text-align:left;">
+Countries in which the study has facilities/sites.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+design_group_interventions
+</td>
+<td style="text-align:left;">
+A cross reference for groups/interventions. If a study has multiple groups and multiple interventions, this table shows which interventions are associated with which groups.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+design_groups
+</td>
+<td style="text-align:left;">
+Defines the protocol-specified group, subgroup, or cohort of participants in a clinical trial assigned to receive specific intervention(s) or observations according to a protocol.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+design_outcomes
+</td>
+<td style="text-align:left;">
+Description of planned outcome measures and observations that will describe patterns of diseases and traits/associations with exposures, risk factors or treatment.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+designs
+</td>
+<td style="text-align:left;">
+Description of how the study will be conducted, including comparison group design and strategies for masking and allocating participants.
+</td>
+<td style="text-align:left;">
+one
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+detailed_descriptions
+</td>
+<td style="text-align:left;">
+A single text column that provides a detailed description of the study protocol.
+</td>
+<td style="text-align:left;">
+one
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+documents
+</td>
+<td style="text-align:left;">
+The full study protocol and statistical analysis plan must be uploaded as part of results information submission, for studies with a Primary Completion Date on or after January 18, 2017. The protocol and statistical analysis plan may be optionally uploaded before results information submission and updated with new versions, as needed. Informed consent forms may optionally be uploaded at any time.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+drop_withdrawals
+</td>
+<td style="text-align:left;">
+Summarized information about how many participants withdrew from the study, when and why. This information explains disposition of participants relative to the numbers starting and completing the study (enumerated in the Milestones table).
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+eligibilities
+</td>
+<td style="text-align:left;">
+Information about the criteria used to select participants; includes inclusion and exclusion criteria
+</td>
+<td style="text-align:left;">
+one
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+facilities
+</td>
+<td style="text-align:left;">
+Name, address and recruiting status of the facilities participating in the study.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+facility_contacts
+</td>
+<td style="text-align:left;">
+Contact information for people responsible for the study at each facility. (primary and backup) Facility contact information is available if the facility status (Facilities.Status) is ‘Recruiting’ or ‘Not yet recruiting,’ and if the data provider has provided such information. Contact information is removed from the publicly available content at ClinicalTrials.gov when the facility is no longer recruiting, or when the overall study status (Studies.Overall_status) changes to indicate that the study has completed recruitment.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+facility_investigators
+</td>
+<td style="text-align:left;">
+Names of the investigators at each study facility. Facility investigator information is available if the facility status (Facilities.Status) is ‘Recruiting’ or ‘Not yet recruiting,’ and if the data provider has provided such information. Investigator information is removed from the publicly available content at ClinicalTrials.gov when the facility is no longer recruiting, or when the overall study status (Studies.Overall_status) changes to indicate that the study has completed recruitment.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+Id_Information
+</td>
+<td style="text-align:left;">
+Identifiers (other than the NCT ID) that uniquely identify the study such as that assigned by the sponsor, or an NCT ID that had previously been used for the study.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+intervention_other_names
+</td>
+<td style="text-align:left;">
+Terns or phrases that are synonymous with an intervention. (Each row is linked to one of the interventions associated with the study.)
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+interventions
+</td>
+<td style="text-align:left;">
+The interventions or exposures (including drugs, medical devices, procedures, vaccines, and other products) of interest to the study, or associated with study arms/groups.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+keywords
+</td>
+<td style="text-align:left;">
+Provides words or phrases that best describe the protocol. Keywords help users find studies in the database. Can include NLM’s Medical Subject Heading (MeSH)-controlled vocabulary terms.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+links
+</td>
+<td style="text-align:left;">
+Web site directly relevant to the protocol. (ie, links to educational, research, government, and other non-profit Web pages)
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+milestones
+</td>
+<td style="text-align:left;">
+Information summarizing the progress of participants through each stage of a study, including the number of participants who started and completed the trial. Enumeration of participants not completing the study is included in the Drop_Withdrawals table.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+outcome_analyses
+</td>
+<td style="text-align:left;">
+Results of scientifically appropriate statistical analyses performed on primary and secondary study outcomes. Includes results for treatment effect estimates, confidence intervals and othe rmeasures of dispersion, and p-values.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+outcome_analysis_groups
+</td>
+<td style="text-align:left;">
+Identifies the comparison groups that were involved with each outcome analysis
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+outcome_counts
+</td>
+<td style="text-align:left;">
+Sample size included in analysis for each outcome for each study group; usually participants but can represent other units of measure such as eyes ‘lesions,’ etc.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+outcome_measurements
+</td>
+<td style="text-align:left;">
+Summary data for primary and secondary outcome measures for each study group. Includes parameter estimates and measures of dispersion/precision.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+outcomes
+</td>
+<td style="text-align:left;">
+Descriptions of outcomes, or observation that were measured to determine patterns of diseases or traits, or associations with exposures, risk factors, or treatment. Includes information such as time frame, population and units. (Specific measurement results are stored in the Outcome_Measurements table.)
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+overall_officials
+</td>
+<td style="text-align:left;">
+People responsible for the overall scientific leadership of the protocol including the principal investigator.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+participant_flows
+</td>
+<td style="text-align:left;">
+Recruitment information relevant to the recruitment process &amp; pre-assignment details (ie. significant events in the study that occur after participant enrollment, but prior to assignment of participants). Information about participant flow that applies to all milestones.
+</td>
+<td style="text-align:left;">
+one
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+pending_results
+</td>
+<td style="text-align:left;">
+<p>Provides information about events related to the submission of study results for quality control (QC) review before the results are publicly posted. Events reported: submissions, cancellations and returns for modifications. ‘Unknown’ is specified for cancellations that occurred before 05/08/2018 (when this data began being collected).</p>
+<p>When a study passes quality control review: 1) results_first_submitted_date is set to the study’s first submission date, 2) results_first_submitted_qc_date is set to the submission date of the version of results that passed QC, 3) the study’s pending_results rows are removed, and 4) the results are posted on ClinicalTrials.gov.</p>
+The latest versions of all studies are posted every business day but, there can be unexpected delays. The results_first_posted_date value will usually be identified as an ‘Estimate’ when first posted. This will switch to ‘Actual’ (and the date may be adjusted) on the next posting cycle, when the true posting date is known.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+provided_documents
+</td>
+<td style="text-align:left;">
+The full study protocol and statistical analysis plan must be uploaded as part of results information submission, for studies with a Primary Completion Date on or after January 18, 2017. The protocol and statistical analysis plan may be optionally uploaded before results information submission and updated with new versions, as needed. Informed consent forms may optionally be uploaded at any time. 
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+reported_events
+</td>
+<td style="text-align:left;">
+Summary information about reported adverse events (any untoward or unfavorable medical occurrence to participants, including abnormal physical exams, laboratory findings, symptoms, or diseases), including serious adverse events, other adverse events, and mortality.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+responsible_parties
+</td>
+<td style="text-align:left;">
+People who have access to and control over the data from the study, have the right to publish study results, and have the ability to meet all of the requirements for the submission of study information.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+result_agreements
+</td>
+<td style="text-align:left;">
+Info about whether an agreement exists between the sponsor &amp; the principal investigators (PIs) that restricts the PIs ability to discuss study results at scientific meetings or other public or private forums, or to publish info concerning the study in scientific or academic journals after the study is completed.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+result_contacts
+</td>
+<td style="text-align:left;">
+Point of contact for scientific information about the clinical study results information. 
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+result_groups
+</td>
+<td style="text-align:left;">
+Consolidated, aggregate list of group titles/descriptions used for reporting summary results information.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+sponsors
+</td>
+<td style="text-align:left;">
+Name of study sponsors and collaborators. The sponsor is the entity or individual initiating the study. Collaborators are other organizations providing support, including funding, design, implementation, data analysis, and reporting.
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+studies
+</td>
+<td style="text-align:left;">
+Basic info about study, including study title, date study registered with ClinicalTrials.gov, date results first posted to ClinicalTrials.gov, dates for study start and completion, phase of study, enrollment status, planned or actual enrollment, number of study arms/groups, etc.
+</td>
+<td style="text-align:left;">
+one
+</td>
+<td style="text-align:left;">
+Protocol &amp; Results
+</td>
+</tr>
+<tr>
+<td style="text-align:left;">
+study_references
+</td>
+<td style="text-align:left;">
+Citations to publications related to the study protocol and/or results. Includes PubMed Unique Identifier (PMID) and/or full bibliographic citation. 
+</td>
+<td style="text-align:left;">
+many
+</td>
+<td style="text-align:left;">
+Protocol
+</td>
+</tr>
+</tbody>
+</table>
 </div>
 <div id="references" class="section level1 unnumbered">
 <h1 class="unnumbered">References</h1>

@@ -28,3 +28,27 @@ The OpenTarget [@OpenTargetsPlatform] platform provides several drugs, disease, 
 **DrugBank**      
 DrugBank [@wishartDrugBankMajorUpdate2018]  is an online database that combines detailed chemical, pharmacological, and pharmaceutical data with comprehensive drug target information. The latest release contains over 14,500 drug entries, comprised of small molecule drugs, biologics, and experimental (discovery-phase) drugs. Each entry has over 200 features containing chemical and target/protein data.
 
+The sections that follow document an exploratory data analysis to discover extant patterns, anomalies and outliers in the data.  
+
+## Aggregate Content of ClinicalTrials.gov (AACT)
+The AACT / ClinicalTrials.gov database is comprised of 53 tables containing protocol and results information for some 380,740 observational and interventional clinical studies conducted from February 2000 through June 2021. 
+
+### Studies Table
+At the center of the data model is the *studies* table which provides basic study information, such as the study title, the date each study was registered with ClinicalTrials.gov, the date that the results first posted, study start and completion dates, enrollment status, planned or actual enrollment, number of study arms/groups, etc.
+
+
+
+ over stored in a Postgres relational database,the details are listed in Appendix A. 
+
+## Appendix A
+AACT Database
+`r kfigr::figr(label = "aact_tables", prefix = TRUE, link = TRUE, type="Table")`: Aggregate Content of ClinicalTrials.gov (AACT) Tables
+```{r aact_tables}
+aact_tables = "./figures/aact_tables.csv"
+sources = read.csv(aact_tables, header=TRUE)
+knitr::kable(sources) %>%
+  kable_styling(bootstrap_options="striped", full_width=TRUE, position="center")
+```
+
+
+

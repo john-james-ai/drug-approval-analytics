@@ -1,7 +1,6 @@
-Dataset,Provider,Updated,Content
-Aggregate Content of ClinicalTrials.gov (AACT),Clinical Trials Transformation Initiative (CTTI),Daily,Clinical Trials
-Drugs@FDA,FDA Center for Drug Evaluation and Research (CDER),Weekly,FDA-Approved Drugs
-PurpleBook,FDA Center for Biologic Evaluation and Research (CBER),10 Business Days,FDA-Approved Biological Products
-Drug Labels,OpenFDA,Weekly,Drug Indications
-OpenTargets Datasets,OpenTargets Platform,Bi-Monthly,Drug Target-Disease
-DrugBank,Wishart Research Group,Quarterly,Drugs-Drug Targets
+Dataset,Provider,Updated,Content,Format,Method,Link
+Aggregate Content of ClinicalTrials.gov (AACT),Clinical Trials Transformation Initiative (CTTI),Daily,Clinical Trials,PostgreSQL,ZipExtractor,https://aact.ctti-clinicaltrials.org/snapshots
+Drugs@FDA,FDA Center for Drug Evaluation and Research (CDER),Weekly,FDA-Approved Drugs,txt,,https://www.fda.gov/drugs/drug-approvals-and-databases/drugsfda-data-files
+PurpleBook,FDA Center for Biologic Evaluation and Research (CBER),10 Business Days,FDA-Approved Biological Products,json,,https://purplebooksearch.fda.gov/downloads
+Drug Labels,OpenFDA,Weekly,Drug Labeling,json,,https://open.fda.gov/apis/drug/label/download/
+OpenTargets Datasets,OpenTargets Platform,Bi-Monthly,Drug Target-Disease,json,,https://platform.opentargets.org/downloads
