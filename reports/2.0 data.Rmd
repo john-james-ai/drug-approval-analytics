@@ -14,13 +14,13 @@ knitr::kable(sources) %>%
 The Clinical Trials Transformation Initiative (CTTI) Aggregate Content of ClinicalTrials.gov (AACT) [@AACTDatabaseClinical] database contains every clinical trial registered in ClinicalTrials.gov. Protocol and results data are provided for over 380,000 clinical trials conducted in all 50 states and 220 countries since February 2000.
 
 **Drugs@FDA**             
-Drugs@FDA [@DrugsFDAFDAApproved] includes prescribing information, approved label/indication, regulatory data, and FDA staff review data for drugs and biologics approved for human use by the FDA Center for Drug Evaluation and Research (CDER).    
+Drugs@FDA [@DrugsFDAApproved] includes prescribing information, approved label/indication, regulatory data, and FDA staff review data for drugs and biologics approved for human use by the FDA Center for Drug Evaluation and Research (CDER).    
 
 **PurpleBook**           
 The PurpleBook [@PurpleBookDatabase] contains FDA-licensed biological products regulated by the CDER. It also includes allergenics, cellular, gene therapy, hematologic and vaccine products regulated by the Center for Biologics Evaluation and Research (CBER).     
 
-**OpenFDA Drug Label**     
-OpenFDA Drug Label [@OpenFDA] data set contains drug manufacturer, class,  route of administration, indication, substance, and mechanism of action information for prescription drugs approved from June 2009 to the present.    
+**Labels Drug Label**     
+Labels Drug Label [@Labels] data set contains drug manufacturer, class,  route of administration, indication, substance, and mechanism of action information for prescription drugs approved from June 2009 to the present.    
 
 **OpenTarget**      
 The OpenTarget [@OpenTargetsPlatform] platform provides several drugs, disease, and drug target data sets for academic and commercial purposes. Disease/Phenotype, Target, Drug, and Target-Disease associations assist in drug target identification and prioritization.

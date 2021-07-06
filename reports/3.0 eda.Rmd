@@ -3,7 +3,7 @@
 This EDA summarizes the characteristics, quality, and utility of the following data sources:
 
 - Aggregate Content of ClinicalTrials.gov (AACT) [@AACTDatabaseClinical]       
-- Drugs@FDA - U.S. Food & Drug Administration Approved Drugs [@DrugsFDAFDAApproved]
+- Drugs@FDA - U.S. Food & Drug Administration Approved Drugs [@DrugsFDAApproved]
 
 ## AACT
 

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Monday, June 21st 2021, 3:17:33 pm                                #
-# Modified : Thursday, July 1st 2021, 11:01:57 pm                              #
+# Modified : Monday, July 5th 2021, 5:28:37 am                                 #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -21,15 +21,17 @@
 import os
 import shutil
 from datetime import datetime
+from sys import exit
 
-from subprocess import Popen, PIPE, SubprocessError
-from psycopg2 import connect, pool, sql, DatabaseError
+from subprocess import Popen, PIPE
+import psycopg2
+from psycopg2 import connect, pool, sql
 import pandas as pd
 import numpy as np
-import psycopg2
+import shlex
 
-from configs.config import Config
-from src.logging import Logger, exception_handler
+from configs.config import AACTConfig
+from src.logging import Logger, exception_handler, logging_decorator
 # -----------------------------------------------------------------------------#
 #                           DATABASE CONNECTION                                #
 # -----------------------------------------------------------------------------# 
@@ -38,56 +40,80 @@ class DBCon:
     __connection_pool = None
 
     @staticmethod
-    def initialise(database):
-        print(database)
-        print("Initializing database. Defaults to the AACT database")
-        credentials = Config.get(section=database + '_credentials')
+    def initialise(credentials):         
         DBCon.__connection_pool = pool.SimpleConnectionPool(2, 10, **credentials)
 
     @staticmethod
     def get_connection():        
         con =  DBCon.__connection_pool.getconn()
-        print("Obtained connection to AACT database.")
         return con
         
 
     @staticmethod
     def return_connection(connection):        
         DBCon.__connection_pool.putconn(connection)
-        print("Returned connection to AACT database.")
 
     @staticmethod
     def close_all_connections():        
         DBCon.__connection_pool.closeall()
-        print("Closed all connections to AACT database.")
 
 
 # -----------------------------------------------------------------------------#
 #                     DATA ACCESS OBJECT BASE CLASS                            #
 # -----------------------------------------------------------------------------#
 class DBDao:
-    def __init__(self, database='aact', dbcon=DBCon):
-        self._logger = Logger()
-        self._dbcon = dbcon
-        self._dbcon.initialise(database=database)
-        self._config = Config()
-        print("Acquiring connection")        
-        self.schema_name = self._config.get(database)['schema']
-        self.schema = None
-        self.table_names = None
-        self.connect()
+    def __init__(self, configuration):        
+        
+        self._configuration = configuration
+        self._credentials = configuration.credentials
+        self._schema_name = configuration.schema_name    
+        DBCon.initialise(self._credentials)
+        self._connection = DBCon.get_connection()                
 
-    def __del__(self):
-        print("Closing db connection")        
-        self.connection.close()
+    def __del__(self):   
+        self._connection.close()
 
-    def connect(self):
-        self.connection = self._dbcon.get_connection()        
+    @property
+    def tables(self):        
+        """Returns a list of tables in the currently open database.
 
+        Returns
+        -------
+        list
+            Table names in the currently open database
+        """  
+        
+        query = "SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE "
+        query += "table_schema = '{schema}';".format(schema=self._schema_name)
+        tables = list(pd.read_sql_query(query, con=self._connection)["table_name"].values)
+
+        # Remove internal metadata. This is some Rails or Oracle related database object.
+        tables.remove("ar_internal_metadata")
+        return tables        
+
+    def get_columns(self, table):
+        """Returns the list of columns and data types for the designated table
+
+        Parameters
+        ----------
+        table : str
+            The name of the table for which the columns are being requested.
+
+        Returns
+        -------
+        DataFrame
+            Columns and their datatypes for the table requested.
+        """        
+        query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS "
+        query += " WHERE table_schema = '{schema}' AND table_name = '{table}';"\
+            .format(schema=self._schema_name, table=table)        
+        columns = pd.read_sql_query(query, con=self._connection)
+        return columns    
+            
         
     def read_table(self, table, idx=None, coerce_float=True, parse_dates=None):
-        query = "SELECT * FROM {schema}.{table};".format(schema=self.schema_name,table=table)
-        df = pd.read_sql_query(sql=query, con=self.connection, index_col=idx, 
+        query = "SELECT * FROM {schema}.{table};".format(schema=self._schema_name,table=table)
+        df = pd.read_sql_query(sql=query, con=self._connection, index_col=idx, 
                                 coerce_float=coerce_float, parse_dates=parse_dates)
         return df    
 
@@ -96,56 +122,126 @@ class DBDao:
 #                       DATABASE ADMINISTRATION                                #
 # -----------------------------------------------------------------------------#
 class DBAdmin:
-    def __init__(self, database='aact'):        
-        DBCon.initialise(database=database)
-        self._config = Config()
-        self._schema_name = self._config.get(database)['schema']
-        self._schema = None
-        self._table_names = None
-        self._connect()
-
-    def __del__(self):
-        print("Closing db connection")        
-        self._connection.close()
-
-    def connect(self):
-        self._connection = DBCon.get_connection()        
-
-    def get_schema(self):
-        if self._schema is None:
-            query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS WHERE "
-            query += "table_schema = '{schema}' ORDER BY table_name;".format(schema=self._schema_name)            
-            self._schema = pd.read_sql_query(query, con=self._connection)
 
     @exception_handler
-    def create_table(self, command):        
-        """Creates a PostgreSQL Table"""
-        cur = self._connection.cursor()
-        cur.execute(command)
-        cur.close()
-        cur.commit()
-        DBCon.return_connection(self._connection)            
+    def create_database(self, credentials):
+        """Creates a new database. If it already exists, its deleted.
 
-    def get_table_names(self):
-        if self._table_names is None:
-            query = "SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE "
-            query += "table_schema = '{schema}'".format(schema=self._schema_name)
-            self._table_names = list(pd.read_sql_query(query, con=self._connection)["table_name"].values)
+        Parameters
+        ----------
+        credentials : dict
+            Dictionary containing the host, database, user id, password and port
 
-            # Remove internal metadata. This is some Rails or Oracle related database object.
-            self._table_names.remove("ar_internal_metadata")
-        return self._table_names
+        Returns
+        -------
+        str
+            The name of the database created.
+        """        
+        con = psycopg2.connect(**credentials)
+        cur = con.cursor()
+        cur.execute("DROP DATABASE {} ;".format(credentials.database))        
+        cur.execute("CREATE DATABASE {} ;".format(credentials.database))
+        cur.execute("GRANT ALL PRIVILEGES ON DATABASE {} TO {} ;".format(credentials.database, credentials.user))
+        return credentials.database  
 
-    def get_columns(self, table, dtype=None):
-        self._get_schema()
-        columns = self._schema.loc[(self._schema["table_name"]==table)]
-        if dtype == "date":
-            columns = columns.loc[(columns["column_name"].str.endswith("date")) | 
-                                    (columns["column_name"].str.endswith("at"))]
-        columns = list(np.array(columns["column_name"].values).flatten())
-        if len(columns) == 0:
-            columns = None
-        return columns    
+    @logging_decorator
+    @exception_handler
+    def drop_database(self, postgres_credentials, database_credentials):
+        """Drops database if it exists.
 
+        Parameters
+        ----------
+        postgres_credentials : class
+            Class containing the DEFAULT POSTGRES credentials 
+        database_credentials : class
+            Class containing the credentials for the database being checked.             
+        """        
+        connection = None
+        connection = psycopg2.connect(**postgres_credentials)    
+        cursor = connection.cursor()
+        cursor.execute("""DROP DATABASE IF EXISTS %s""",(database_credentials.database))       
+
+
+    @logging_decorator
+    @exception_handler
+    def backup(self, configuration):
+        """Backup postgres database to file.
+
+        Parameters
+        ----------
+        configuration : class
+            Class containing the host, database, user id, password and port
+        """                
+        backup_filepath = configuration.backup_filepath.format(date=datetime.now().strftime("%Y%m%d"))
+        process = Popen(
+            ['pg_dump',
+            '--dbname=postgresql://{}:{}@{}:{}/{}'.format(
+                configuration.credentials['user'],
+                configuration.credentials['password'],
+                configuration.credentials['host'],
+                configuration.credentials['port'],
+                configuration.credentials['database']),
+            '-f', configuration.backup_filepath],
+            stdout=PIPE
+        )
+        output = process.communicate()[0]
+        if process.returncode != 0:
+            print('Command failed. Return code : {}'.format(process.returncode))
+            exit(1)
+        return output
+
+            
+    @logging_decorator
+    @exception_handler
+    def restore(self, configuration):
+        """Restore postgres from file
+
+        This is also used to refresh the database with the latest
+        export from the source website.  It is advised to BACKUP THE ORIGINAL
+        before restoring.
+
+        Parameters
+        ----------
+        configuration : class
+            Class containing credentials and  filename for restoration
+        """      
+        
+        restore_filepath = configuration.filepath
+        restore_cmd = "pg_dump -e -v -O -x -h {host} -d {database} \
+                        -U {user} -p {port} --clean --no-owner -Fc -f {filepath}"\
+                        .format(configuration.host, configuration.database,
+                                configuration.user, configuration.port,
+                                restore_filepath)
+
+        restore_cmd = shlex.split(restore_cmd)
+
+        process = Popen(restore_cmd, shell=False, stdin=PIPE, 
+                        stdout=PIPE, stderr=PIPE)            
+
+        output = process.communicate('{}n'.format(configuration.password))[0]
+        if int(process.returncode) != 0:
+            print('Command failed. Return code : {}'.format(process.returncode))
+
+        return output
         
 
+    def promote_database(active_db_credentials, temp_db_credentials):
+        """Promotes a temporary database to active.
+
+        Parameters
+        ----------
+        active_db_credentials : dict
+            Database, user, password, host, and port for active database
+        temp_db_credentials : [type]
+            Database, user, password, host, and port for temp database
+        """        
+
+        con = psycopg2.connect(**active_db_credentials)
+        cur = con.cursor()
+        cur.execute("SELECT pg_terminate_backend( pid ) "
+                    "FROM pg_stat_activity "
+                    "WHERE pid <> pg_backend_pid( ) "
+                    "AND datname = '{}'".format(active_db_credentials.database))
+        cur.execute("DROP DATABASE {}".format(active_db_credentials.database))
+        cur.execute('ALTER DATABASE "{}" RENAME TO "{}";'.format(temp_db_credentials.database, 
+                                                                active_db_credentials.database))

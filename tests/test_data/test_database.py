@@ -3,7 +3,7 @@
 #==============================================================================#
 # Project  : Predict-FDA                                                       #
 # Version  : 0.1.0                                                             #
-# File     : \dataobject.py                                                    #
+# File     : \test_database.py                                                 #
 # Language : Python 3.9.5                                                      #
 # -----------------------------------------------------------------------------#
 # Author   : John James                                                        #
@@ -11,41 +11,45 @@
 # Email    : john.james@nov8.ai                                                #
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
-# Created  : Thursday, July 1st 2021, 11:55:27 am                              #
-# Modified : Sunday, July 4th 2021, 11:22:55 pm                                #
+# Created  : Sunday, July 4th 2021, 6:46:35 pm                                 #
+# Modified : Monday, July 5th 2021, 5:19:25 am                                 #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
 # Copyright: (c) 2021 nov8.ai                                                  #
 #==============================================================================#
-import os
-from datetime import date, datetime
+#%%
+import pytest
 
-import pandas as pd
-
+from configs.config import AACTConfig
+from src.data.database import DBAdmin, DBDao
 # -----------------------------------------------------------------------------#
-class DataObject:
-    """Standard object for interacting with data in csv format.
 
-    Parameters
-    ----------
-    name : str
-        The name of the data object. Should be the basename for the file.
-    configuration: dict
-        Dict containing extract and transform directory information  
-    """    
-    
-    def __init__(self, name, configuration):
-        self.name = name 
-        self._configuration = configuration
-        self.persistence = configuration.persistence
-        self.extract_dir = configuration.extract_dir
-        self.transformed_dir = configuration.transformed_dir
+@pytest.mark.database
+class DBAdminTests:
 
-    def read(self, directory):
-        filepath = os.path.join(directory, self.name +'.csv')
-        return pd.read_csv(filepath)
+    def test_backup(self):
+        aact_config = AACTConfig('aact')
+        db = DBAdmin()
+        db.backup(aact_config)
 
-    def write(self, data, directory):
-        filepath = os.path.join(directory, self.name +'.csv')
-        data.to_csv(filepath)
+@pytest.mark.dbdao
+class DBDaoTests:
+    def test_read_table(self):
+        aact_config = AACTConfig('aact')
+        db = DBDao(aact_config)
+        data = db.read_table('studies')
+        assert data.shape[0] > 1000, "Error reading 'studies' table"
+
+
+    def test_get_columns(self):
+        aact_config = AACTConfig('aact')
+        db = DBDao(aact_config)
+        tables = db.tables        
+        columns = db.get_columns("studies")        
+        assert len(tables) > 50, "Error reading tables from DBAdmin" 
+        assert columns.shape[0] > 0, "Error reading columns from DBAdmin"
+        assert columns.shape[1] > 0, "Error reading columns from DBAdmin"    
+
+dbt = DBAdminTests()
+dbt.test_backup()
