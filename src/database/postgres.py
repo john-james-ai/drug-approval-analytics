@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Monday, June 21st 2021, 3:17:33 pm                                #
-# Modified : Monday, July 5th 2021, 5:28:37 am                                 #
+# Modified : Tuesday, July 6th 2021, 4:27:13 pm                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -32,8 +32,12 @@ import shlex
 
 from configs.config import AACTConfig
 from src.logging import Logger, exception_handler, logging_decorator
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
+Base = declarative_base()
 # -----------------------------------------------------------------------------#
-#                           DATABASE CONNECTION                                #
+#                       POSTGRES DATABASE CONNECTION                           #
 # -----------------------------------------------------------------------------# 
 class DBCon:
 

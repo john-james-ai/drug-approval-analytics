@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Monday, June 21st 2021, 3:59:38 am                                #
-# Modified : Monday, July 5th 2021, 4:07:17 pm                                 #
+# Modified : Tuesday, July 6th 2021, 7:52:37 pm                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -68,7 +68,37 @@ class Config():
             return config
         else:
             raise FileNotFoundError(filename)
-            
+# -----------------------------------------------------------------------------#
+class Credentials:
+    """Class used to obtain database credentials."""
+    def __init__(self, name):
+        self.name = name
+        credentials = Config().get(name + '_credentials')
+        self._database = credentials['database']
+        self._host = credentials['host']
+        self._user = credentials['user']
+        self._password = credentials['password']
+        self._port = credentials['port']
+
+    @property
+    def database(self):
+        return self._database
+
+    @property
+    def host(self):
+        return self._host
+
+    @property
+    def user(self):
+        return self._user
+
+    @property
+    def password(self):
+        return self._password
+
+    @property
+    def port(self):
+        return self._port
 # -----------------------------------------------------------------------------#
 class Configuration(ABC):
 
@@ -150,18 +180,18 @@ restore_db_credentials = Config().get('aactii_credentials')
 # -----------------------------------------------------------------------------#
 class LabelsConfig(Configuration):
 
-    def __init__(self, name='Labels'):
+    def __init__(self, name='labels'):
         self.name = name
 
     @property
-    def links(self):
-        return Config().get(self.name, 'links')
+    def download_links(self):
+        return Config().get(self.name, 'download_links')
 
 
 # -----------------------------------------------------------------------------#
 class DrugsConfig(Configuration):
 
-    def __init__(self, name='Drugs'):
+    def __init__(self, name='drugs'):
         self.name = name        
 
     @property
