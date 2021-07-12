@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Monday, June 21st 2021, 3:17:33 pm                                #
-# Modified : Tuesday, July 6th 2021, 4:27:13 pm                                #
+# Modified : Monday, July 12th 2021, 2:52:04 am                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -30,7 +30,7 @@ import pandas as pd
 import numpy as np
 import shlex
 
-from configs.config import AACTConfig
+from configs.config import Configuration, Credentials, Config, AACTConfig
 from src.logging import Logger, exception_handler, logging_decorator
 from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
@@ -63,17 +63,17 @@ class DBCon:
 
 
 # -----------------------------------------------------------------------------#
-#                     DATA ACCESS OBJECT BASE CLASS                            #
+#                     DATA ACCESS OBJECT FOR POSTGRES DATABASES                #
 # -----------------------------------------------------------------------------#
 class DBDao:
-    def __init__(self, configuration):        
-        
-        self._configuration = configuration
-        self._credentials = configuration.credentials
-        self._schema_name = configuration.schema_name    
-        DBCon.initialise(self._credentials)
+    def __init__(self, dbname='aact'):                
+        self._dbname = dbname
+        self._credentials = Config().get(dbname +'_credentials')
+        self._configuration = AACTConfig(dbname)
+        DBCon.initialise(self._credentials) 
         self._connection = DBCon.get_connection()                
-
+        self._schema_name = self._configuration.schema_name    
+        
     def __del__(self):   
         self._connection.close()
 

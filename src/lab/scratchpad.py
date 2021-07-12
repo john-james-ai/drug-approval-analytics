@@ -3,7 +3,7 @@
 #==============================================================================#
 # Project  : Predict-FDA                                                       #
 # Version  : 0.1.0                                                             #
-# File     : \__init__.py                                                      #
+# File     : \scratchpad.py                                                    #
 # Language : Python 3.9.5                                                      #
 # -----------------------------------------------------------------------------#
 # Author   : John James                                                        #
@@ -11,18 +11,14 @@
 # Email    : john.james@nov8.ai                                                #
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
-# Created  : Tuesday, July 6th 2021, 2:53:38 am                                #
-# Modified : Saturday, July 10th 2021, 8:11:46 am                              #
+# Created  : Sunday, July 11th 2021, 11:22:51 am                               #
+# Modified : Monday, July 12th 2021, 12:27:23 am                               #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
 # Copyright: (c) 2021 nov8.ai                                                  #
 #==============================================================================#
-from abc import ABCMeta, abstractmethod
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
-Base = declarative_base()
-
-class DeclarativeABCMeta(DeclarativeMeta, ABCMeta):
-    pass
-
-AbstractBase = declarative_base(metaclass=DeclarativeABCMeta)
+#%%
+a = "./house/mylink"
+print('link' in a)
+# %%

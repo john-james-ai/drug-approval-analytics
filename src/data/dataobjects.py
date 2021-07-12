@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Thursday, July 1st 2021, 11:55:27 am                              #
-# Modified : Tuesday, July 6th 2021, 7:47:54 pm                                #
+# Modified : Sunday, July 11th 2021, 8:42:43 pm                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -21,55 +21,95 @@
 import inspect
 import os
 from datetime import date, datetime
+import pprint
+import json
 
+import pandas as pd
 from sqlalchemy import String, Integer, Column, Boolean, DateTime
-from sqlalchemy.orm import declarative_base
-Base = declarative_base()
+from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.schema import ForeignKey
+from src.database import Base
+from src.utils.files import get_file_metadata
 # -----------------------------------------------------------------------------#
 class DataObject(Base):    
-    """Standard object that represents and provides access to data.
+    """Base class for storage independent data that flows through the pipeline.
 
-    Attributes:        
-        name (str): name of object. 
-        source (str): Name of the source data item
-        otype (str): Type of DataObject, i.e. 'clinical_trial', 'drug', etc...
-        stage (str): Pipeline stage, i.e. 'extracted', 'staged', etc...
-        originator (str): Name of the class and method that instantiated this object.
-        persistence (str): Filepath where data is stored                
+    A DataObject is groups related data items, such as clinical studies, 
+    combined into a single unit. DataObjects are analogous to 2D data tables
+    containing rows and columns.
+
+    Parameters
+    ----------
+        name (str): Name for the DataObject. This must be unique in the pipeline.
+        entity (str): Name representing the meaning of the object.
+        data (DataFrame): DataFrame containing the data.
+
+    Attributes:       
+    -----------                  
+        created (DateTime): The datatime the object was created.
+        updated (DateTime): The datatime the object was updated.
          
     """
 
-    __abstract__ = True
+    __tablename__ = 'dataobject'
 
     id = Column(Integer, primary_key=True)
-    name = Column('name', String)
-    source = Column('source', String)    
-    otype = Column('otype', String)
-    stage = Column('stage', String)
-    persistence = Column('persistence', String)
-    originator = Column('originator', String)
-    
-    def __init__(self, name, source, otype, stage, persistence, *args, **kwargs):        
-        self.name = name 
-        self.source = source
-        self.otype = otype
-        self.stage = stage
-        self.persistence = persistence        
-        self.profile = None
-        self.metadata = None
-        stack = inspect.stack()
-        self.originator = stack[1][0].f_locals["self"].__class__.__name__
+    _name = Column('name', String(20)) 
+    _entity = Column('entity', String(20)) 
+    _created = Column('created', DateTime)
+    _updated = Column('updated', DateTime)
 
-    def __repr__(self):
-        return "DataObject({},{},{},{},{})".format(repr(self.name), repr(self.source), repr(self.otype),
-                                repr(self.stage), repr(self.persistence))
+    # Supports Polymorphism
+    type = Column(String)  
+
+    __mapper_args__ = {
+        'polymorphic_identity': 'dataobject',
+        'polymorphic_on': type
+    }    
+    
+    def __init__(self, name, entity, data):        
+        self._name = name         
+        self._entity = entity
+        self._data = data
+        self._created = datetime.now()
+        self._updated = datetime.now()        
+
+        self._data = None
+
+    def __repr__(self):        
+        return  f'self.__class__.__name__('\
+                f'{repr(self._name)}, {repr(self._entity)})'
 
     def __str__(self):
-        return "DataObject({},{},{},{},{})".format(self.name, self.source, self.otype,
-                                self.stage, self.persistence)
+        classname = "{classname}\n".format(classname=self.__class__.__name__)
+        attributes = json.dumps(self.__dict__, indent=2, separators=(',',':'))
+        attributes, readable, recursion = pprint.format(attributes, depth=1)
+        return classname + attributes
 
+    # ----------------------------------------------------------------------- #
+    #                           PUBLIC METHODS                                #
+    # ----------------------------------------------------------------------- #
     def get_data(self):
-        pass
+        return self._data
 
-    def set_data(self, data):
-        pass
+    def set_data(self, df):
+        self._data = df
+
+    def get_attributes(self):        
+        return self._data.dtypes.to_frame()               
+
+    # ----------------------------------------------------------------------- #
+    #                              PROPERTIES                                 #
+    # ----------------------------------------------------------------------- #
+    @hybrid_property
+    def name(self):
+        return self._name
+
+    @hybrid_property
+    def created(self):
+        return self._created
+
+    @hybrid_property
+    def updated(self):
+        return self._updated
+

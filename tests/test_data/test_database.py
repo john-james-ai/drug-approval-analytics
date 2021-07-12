@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Sunday, July 4th 2021, 6:46:35 pm                                 #
-# Modified : Monday, July 5th 2021, 5:19:25 am                                 #
+# Modified : Friday, July 9th 2021, 6:39:08 pm                                 #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -51,5 +51,11 @@ class DBDaoTests:
         assert columns.shape[0] > 0, "Error reading columns from DBAdmin"
         assert columns.shape[1] > 0, "Error reading columns from DBAdmin"    
 
-dbt = DBAdminTests()
-dbt.test_backup()
+def main():
+    dbt = DBAdminTests()
+    dbt.test_backup()    
+
+
+if __name__ == "__main__":
+    main()   
+

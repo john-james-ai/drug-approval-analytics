@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Wednesday, June 30th 2021, 9:58:34 am                             #
-# Modified : Monday, July 5th 2021, 5:20:17 am                                 #
+# Modified : Sunday, July 11th 2021, 10:10:23 pm                               #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -73,7 +73,48 @@ def logging_decorator(func):
         logger.info("Completed {name}".format(name=name))
         return result
     return wrapper_logger
+# -----------------------------------------------------------------------------#
+def log_step(func):
+    """Log step in pipeline ."""
+    @functools.wraps(func)
+    def wrapper_step(*args, **kwargs):        
+        log_class = Logger(func.__module__)
+        logger = log_class.get_logger()   
 
+        # Get object data for logging and write to logger.
+        name = func.__qualname__
+        args_repr = [repr(a) for a in args]                      
+        kwargs_repr = [f"{k}={v!r}" for k, v in kwargs.items()]  
+        signature = ", ".join(args_repr + kwargs_repr)    
+        message = f"Calling {name}({signature})"
+        logger.info(message)
+
+        try:
+            result = func(*args, **kwargs)
+            logger.info(f"{name} returned {str(result)}")
+            return result
+            
+
+        except (Exception, HTTPError, URLError, psycopg2.DatabaseError) as error:
+            # Write Exception
+            logger.exception("Exception thrown {}: {}\n ".format(type(error), str(error)))
+            
+            # iterate through the frames in reverse order so we print the 
+            # most recent frame first
+            frames = inspect.getinnerframes(sys.exc_info()[2])
+            for frame in reversed(frames):                                
+                frame_msg = '  File {}, line {}, in {}    {}\n'.format(frame[1], \
+                    frame[2], frame[3], frame[4][0].lstrip())
+                logger.exception(frame_msg)
+
+                # log local variables of the frame
+                for k, v in frame[0].f_locals.items():
+                    variables = "    {} = {}\n".format(k,str(v))
+                    logger.exception(variables)
+            # Re-raise the exception
+            raise error
+                    
+    return wrapper_step
 # -----------------------------------------------------------------------------#
 def exception_handler(func):
     """Log Exception Decorator    
@@ -115,11 +156,11 @@ def exception_handler(func):
                 logger.exception(frame_msg)
 
                 # log local variables of the frame
-                for k, v in frame[0].f_locals:
+                for k, v in frame[0].f_locals.items():
                     variables = "    {} = {}\n".format(k,str(v))
                     logger.exception(variables)
             # Re-raise the exception
-            raise
+            raise error
     return wrapper_logger
 
     

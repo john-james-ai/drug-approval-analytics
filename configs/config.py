@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Monday, June 21st 2021, 3:59:38 am                                #
-# Modified : Tuesday, July 6th 2021, 7:52:37 pm                                #
+# Modified : Sunday, July 11th 2021, 6:21:03 pm                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -110,42 +110,26 @@ class Configuration(ABC):
         return Config().get(self.name, 'webpage')
 
     @property
-    def url(self):
-        return Config().get(self.name, 'url')
+    def baseurl(self):
+        return Config().get(self.name, 'baseurl')
 
     @property
-    def persistence(self):
-        return Config().get(self.name, 'persistence')     
+    def extract_dir(self):
+        return Config().get(self.name, 'extract_dir')     
 
     @property
-    def staged_dir(self):
-        return Config().get(self.name, 'staged_dir')             
+    def staging_dir(self):
+        return Config().get(self.name, 'staging_dir')             
 
     @property
-    def extracted_dir(self):
-        return Config().get(self.name, 'extracted_dir')             
-
-    @property
-    def transformed_dir(self):
-        return Config().get(self.name, 'transformed_dir')                     
-
-    @property
-    def backup(self):
-        return Config().get(self.name, 'backup')
+    def backup_filepath(self):
+        return Config().get(self.name, 'backup_filepath')
 
     @property
     def lifecycle(self):
         return int(Config().get(self.name, 'lifecycle'))
 
-    @property
-    def download_date(self):
-        dd = Config().get(self.name, 'download_date')
-        return datetime.strptime(dd, "%Y%m%d")
-
-    @download_date.setter
-    def download_date(self, download_date):
-        Config().set(self.name, 'download_date', download_date)
-    
+        
 # -----------------------------------------------------------------------------#
 class AACTConfig(Configuration):
 
@@ -154,7 +138,7 @@ class AACTConfig(Configuration):
 
     @property
     def schema_name(self):
-        return Config().get(self.name, 'schema_name')        
+        return Config().get(self.name, 'schema_name')       
 
     @property
     def backup_filepath(self):
@@ -176,7 +160,6 @@ class AACTConfig(Configuration):
     def credentials(self):
         return Config().get('aact_credentials')
 
-restore_db_credentials = Config().get('aactii_credentials')
 # -----------------------------------------------------------------------------#
 class LabelsConfig(Configuration):
 

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Friday, July 2nd 2021, 4:40:41 am                                 #
-# Modified : Tuesday, July 6th 2021, 7:12:16 pm                                #
+# Modified : Friday, July 9th 2021, 6:39:44 pm                                 #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -70,9 +70,16 @@ class DataSourceTests:
                 filepath = os.path.join(downloaded_dir, filename)
                 assert files.modified_today(filepath)     
 
-dst = DataSourceTests()
-#dst.test_aact_datasource()
-#dst.test_drugs_datasource()
-dst.test_labels_datasource()
+def main():
+    dst = DataSourceTests()
+    #dst.test_aact_datasource()
+    #dst.test_drugs_datasource()
+    #dst.test_labels_datasource()
+
+
+if __name__ == "__main__":
+    main()   
+
+
 
 # %%

@@ -3,7 +3,7 @@
 #==============================================================================#
 # Project  : Predict-FDA                                                       #
 # Version  : 0.1.0                                                             #
-# File     : \__init__.py                                                      #
+# File     : \dict_lab.py                                                      #
 # Language : Python 3.9.5                                                      #
 # -----------------------------------------------------------------------------#
 # Author   : John James                                                        #
@@ -11,18 +11,17 @@
 # Email    : john.james@nov8.ai                                                #
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
-# Created  : Tuesday, July 6th 2021, 2:53:38 am                                #
-# Modified : Saturday, July 10th 2021, 8:11:46 am                              #
+# Created  : Friday, July 9th 2021, 8:43:07 pm                                 #
+# Modified : Friday, July 9th 2021, 8:44:50 pm                                 #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
 # Copyright: (c) 2021 nov8.ai                                                  #
 #==============================================================================#
-from abc import ABCMeta, abstractmethod
-from sqlalchemy.ext.declarative import declarative_base, DeclarativeMeta
-Base = declarative_base()
-
-class DeclarativeABCMeta(DeclarativeMeta, ABCMeta):
-    pass
-
-AbstractBase = declarative_base(metaclass=DeclarativeABCMeta)
+#%%
+d = {}
+d[1] = 'one'
+d[2] = 'two'
+d[3] = 'three'
+shifters = [v for k,v in d.items() if k >=2]
+print(shifters)
