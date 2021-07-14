@@ -17,6 +17,9 @@ logs/
 # Admin
 admin/
 
+# Reports
+*.html
+
 # Distribution / packaging
 .Python
 env/

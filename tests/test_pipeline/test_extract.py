@@ -24,13 +24,13 @@ import pytest
 from pytest import mark
 from datetime import datetime, date
 
-from configs.config import Credentials, AACTConfig, DrugsConfig, LabelsConfig
-from src.database.postgres import DBDao
-from src.database.orm import DataSourcesFactory, DataObjectsFactory
-from src.pipeline.core import Pipeline, PipelineStep
-from src.data.datasources import AACTDataSource, DrugsDataSource, LabelsDataSource
-from src.pipeline.steps import Extract, Stage, StagePGDatabase, StageTSVFiles, StageJSONFiles
-from src.utils.files import modified_today
+from config.config import Credentials, AACTConfig, DrugsConfig, LabelsConfig
+from approval.database.postgres import DBDao
+from approval.database.orm import DataSourcesFactory, DataObjectsFactory
+from approval.pipeline.core import Pipeline, PipelineStep
+from approval.data.datasources import AACTDataSource, DrugsDataSource, LabelsDataSource
+from approval.pipeline.steps import Extract, Stage, StagePGDatabase, StageTSVFiles, StageJSONFiles
+from approval.utils.files import modified_today
 # -----------------------------------------------------------------------------#
 @mark.pipeline
 class ExtractPipelineTests:

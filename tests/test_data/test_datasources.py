@@ -24,10 +24,10 @@ import pytest
 import time
 import os
 
-from configs.config import AACTConfig, DrugsConfig, LabelsConfig
-from src.data.datasources import AACTDataSource, DrugsDataSource, LabelsDataSource
-from src.database.postgres import DBDao
-from src.utils import files
+from config.config import AACTConfig, DrugsConfig, LabelsConfig
+from approval.data.datasources import AACTDataSource, DrugsDataSource, LabelsDataSource
+from approval.database.postgres import DBDao
+from approval.utils import files
 # -----------------------------------------------------------------------------#
 
 @pytest.mark.datasources

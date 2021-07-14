@@ -24,13 +24,13 @@ import pytest
 import time
 import os
 
-from configs.config import AACTConfig, DrugsConfig, LabelsConfig
-from src.data.datasources import DataSource, AACTDataSource, DrugsDataSource, LabelsDataSource
-from src.data.dataobjects import DataObject
-from src.database.orm import DataSourcesFactory, DataObjectsFactory
-from src.database.orm import ORMDatabase, ORMDataSource, ORMDataObject
-from configs.config import Credentials
-from src.utils import files
+from config.config import AACTConfig, DrugsConfig, LabelsConfig
+from approval.data.datasources import DataSource, AACTDataSource, DrugsDataSource, LabelsDataSource
+from approval.data.dataobjects import DataObject
+from approval.database.orm import DataSourcesFactory, DataObjectsFactory
+from approval.database.orm import ORMDatabase, ORMDataSource, ORMDataObject
+from config.config import Credentials
+from approval.utils import files
 # -----------------------------------------------------------------------------#
 
 @pytest.mark.orm
