@@ -18,7 +18,8 @@ logs/
 admin/
 
 # Reports
-*.html
+*/*.html
+
 
 # Distribution / packaging
 .Python
@@ -103,3 +104,6 @@ target/
 # Mypy cache
 .mypy_cache/
 .Rproj.user
+reports/manuscript/0.0-home.html
+.gitignore
+reports/manuscript/1.0-intro.html
