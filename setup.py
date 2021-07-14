@@ -21,14 +21,14 @@
 from setuptools import find_packages, setup
 
 setup(
-    name='drug-approval',
+    name='DrugApproval',
     packages=find_packages(),
     version='0.1.0',
     description="AI-Based Clinical Drug Development Approval Decision Support",
     author='John James',
     author_email="john.james@nov8.ai",    
     license='BSD-3',
-    download_url='https://github.com/john-james-sf/drug-approval',
+    download_url='https://github.com/john-james-sf/DrugApproval',
     classifiers=[
 
     ]
@@ -64,7 +64,7 @@ setup(
     # There are some restrictions on what makes a valid project name
     # specification here:
     # https://packaging.python.org/specifications/core-metadata/#name
-    name='drug-approval',  # Required
+    name='DrugApproval',  # Required
 
     # Versions should comply with PEP 440:
     # https://www.python.org/dev/peps/pep-0440/
@@ -105,7 +105,7 @@ setup(
     #
     # This field corresponds to the "Home-Page" metadata field:
     # https://packaging.python.org/specifications/core-metadata/#home-page-optional
-    url='https://github.com/john-james-sf/drug-approval',  # Optional
+    url='https://github.com/john-james-sf/DrugApproval',  # Optional
 
     # This should be your name or the name of the organization which owns the
     # project.
@@ -154,7 +154,7 @@ setup(
 
     # When your source code is in a subdirectory under the project root, e.g.
     # `src/`, it is necessary to specify the `package_dir` argument.
-    package_dir={'': 'drug-approval'},  # Optional
+    package_dir={'': 'DrugApproval'},  # Optional
 
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
@@ -165,7 +165,7 @@ setup(
     #
     #   py_modules=["my_module"],
     #
-    packages=find_packages(where='drug-approval'),  # Required
+    packages=find_packages(where='DrugApproval'),  # Required
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
@@ -205,7 +205,7 @@ setup(
     # http://docs.python.org/distutils/setupscript.html#installing-additional-files
     #
     # In this case, 'data_file' will be installed into '<sys.prefix>/my_data'
-    # data_files=[('drug-approval', ['data/data_file'])],  # Optional
+    # data_files=[('DrugApproval', ['data/data_file'])],  # Optional
 
     # To provide executable scripts, use entry points in preference to the
     # "scripts" keyword. Entry points provide cross-platform support and allow
@@ -216,7 +216,7 @@ setup(
     # executes the function `main` from this package when invoked:
     entry_points={  # Optional
         'console_scripts': [
-            'drug-approval=drug-approval:main',
+            'DrugApproval=DrugApproval:main',
         ],
     },
 

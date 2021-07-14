@@ -20,7 +20,7 @@
 #==============================================================================#
 import os
 from configparser import ConfigParser
-from ..drug-approval.
+from ..DrugApproval.
 
 
 # -----------------------------------------------------------------------------#
@@ -28,7 +28,7 @@ class Config:
     """Interface for Python ConfigParser configurations."""
 
     filepath = {}
-    filepath['dev'] = "../drug-approval/config/metadata.ini"    
+    filepath['dev'] = "../DrugApproval/config/metadata.ini"    
     filepath['prod'] = "./config/metadata.ini"    
 
     def __init__(self, env='dev'):
