@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 #==============================================================================#
-# Project  : Predict-FDA                                                       #
+# Project  : Drug Approval Analytics                                           #
 # Version  : 0.1.0                                                             #
-# File     : \__init__.py                                                      #
+# File     : \src\database\__init__.py                                         #
 # Language : Python 3.9.5                                                      #
 # -----------------------------------------------------------------------------#
 # Author   : John James                                                        #
 # Company  : nov8.ai                                                           #
 # Email    : john.james@nov8.ai                                                #
-# URL      : https://github.com/john-james-sf/predict-fda                      #
+# URL      : https://github.com/john-james-sf/drug-approval-analytics          #
 # -----------------------------------------------------------------------------#
-# Created  : Wednesday, June 23rd 2021, 12:55:32 pm                            #
-# Modified : Wednesday, June 23rd 2021, 12:55:35 pm                            #
+# Created  : Saturday, July 17th 2021, 10:21:07 pm                             #
+# Modified : Saturday, July 17th 2021, 10:23:29 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #

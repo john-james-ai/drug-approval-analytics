@@ -3,7 +3,7 @@
 #==============================================================================#
 # Project  : Predict-FDA                                                       #
 # Version  : 0.1.0                                                             #
-# File     : \aact_db.py                                                       #
+# File     : \database.py                                                      #
 # Language : Python 3.9.5                                                      #
 # -----------------------------------------------------------------------------#
 # Author   : John James                                                        #
@@ -11,8 +11,8 @@
 # Email    : john.james@nov8.ai                                                #
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
-# Created  : Monday, June 21st 2021, 3:17:33 pm                                #
-# Modified : Monday, July 12th 2021, 2:52:04 am                                #
+# Created  : Thursday, July 15th 2021, 11:58:44 am                             #
+# Modified : Saturday, July 17th 2021, 10:23:18 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -22,20 +22,17 @@ import os
 import shutil
 from datetime import datetime
 from sys import exit
+import logging
+logger = logging.getLogger(__name__)
 
 from subprocess import Popen, PIPE
 import psycopg2
 from psycopg2 import connect, pool, sql
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import pandas as pd
-import numpy as np
 import shlex
 
-from config.config import Configuration, Credentials, Config, AACTConfig
-from approval.logging import Logger, exception_handler, logging_decorator
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-Base = declarative_base()
+from ..utils.config import Credentials
 # -----------------------------------------------------------------------------#
 #                       POSTGRES DATABASE CONNECTION                           #
 # -----------------------------------------------------------------------------# 
@@ -66,10 +63,10 @@ class DBCon:
 #                     DATA ACCESS OBJECT FOR POSTGRES DATABASES                #
 # -----------------------------------------------------------------------------#
 class DBDao:
-    def __init__(self, dbname='aact'):                
+    def __init__(self, dbname):                
         self._dbname = dbname
-        self._credentials = Config().get(dbname +'_credentials')
-        self._configuration = AACTConfig(dbname)
+        credentials = Credentials()
+        self._credentials = credentials(dbname)
         DBCon.initialise(self._credentials) 
         self._connection = DBCon.get_connection()                
         self._schema_name = self._configuration.schema_name    
@@ -123,69 +120,90 @@ class DBDao:
 
 
 # -----------------------------------------------------------------------------#
-#                       DATABASE ADMINISTRATION                                #
+#                       POSTGRSE DATABASE ADMINISTRATION                       #
 # -----------------------------------------------------------------------------#
 class DBAdmin:
 
-    @exception_handler
-    def create_database(self, credentials):
+    def create_database(self, dbname):
         """Creates a new database. If it already exists, its deleted.
 
         Parameters
         ----------
-        credentials : dict
-            Dictionary containing the host, database, user id, password and port
+        dbname (str): the name of the database as defined in the credentials file.
 
         Returns
         -------
         str
             The name of the database created.
         """        
-        con = psycopg2.connect(**credentials)
-        cur = con.cursor()
-        cur.execute("DROP DATABASE {} ;".format(credentials.database))        
-        cur.execute("CREATE DATABASE {} ;".format(credentials.database))
-        cur.execute("GRANT ALL PRIVILEGES ON DATABASE {} TO {} ;".format(credentials.database, credentials.user))
-        return credentials.database  
+        # Postgres api connect format 
+        # engine = create_engine(
+        #     "postgresql://user:pass@hostname/dbname",
+        #     connect_args={"connection_factory": MyConnectionFactory}
+        # )
+        config = Credentials()
+        credentials = config('postgres')
 
-    @logging_decorator
-    @exception_handler
-    def drop_database(self, postgres_credentials, database_credentials):
+        con = psycopg2.connect(**credentials)
+        con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+        cur = con.cursor()
+        cur.execute("DROP DATABASE IF EXISTS {} ;".format(dbname))        
+        cur.execute("CREATE DATABASE {} ;".format(dbname))
+        cur.execute("GRANT ALL PRIVILEGES ON DATABASE {} TO {} ;".format(dbname, credentials['user']))
+
+        logger.info("Database {} created successfully.".format(dbname))
+
+        con.close()
+        return dbname
+
+    def drop_database(self, dbname):
         """Drops database if it exists.
 
         Parameters
         ----------
-        postgres_credentials : class
-            Class containing the DEFAULT POSTGRES credentials 
-        database_credentials : class
-            Class containing the credentials for the database being checked.             
+        dbname (str): the name of the database as defined in the credentials file.
+
         """        
-        connection = None
-        connection = psycopg2.connect(**postgres_credentials)    
-        cursor = connection.cursor()
-        cursor.execute("""DROP DATABASE IF EXISTS %s""",(database_credentials.database))       
+        
+        config = Credentials()
+        credentials = config('postgres')
+
+        con = psycopg2.connect(**credentials)
+        con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+        cur = con.cursor()
+        cur.execute("DROP DATABASE IF EXISTS {} ;".format(dbname))        
+
+        logger.info("Database {} created deleted.".format(dbname))
+
+        con.close()
+        return dbname 
 
 
-    @logging_decorator
-    @exception_handler
-    def backup(self, configuration):
-        """Backup postgres database to file.
+    # TODO
+    def backup(self, dbname, backup_filepath):
+        """Drops database if it exists.
 
         Parameters
         ----------
-        configuration : class
-            Class containing the host, database, user id, password and port
-        """                
-        backup_filepath = configuration.backup_filepath.format(date=datetime.now().strftime("%Y%m%d"))
+        dbname (str): the name of the database as defined in the credentials file.
+        backup_filepath (str): the backup relative filepath. 
+
+        """             
+        config = Credentials()
+        credentials = config(dbname)
+
+        backup_filepath = backup_filepath.format(date=datetime.now().strftime("%Y%m%d"))
         process = Popen(
             ['pg_dump',
             '--dbname=postgresql://{}:{}@{}:{}/{}'.format(
-                configuration.credentials['user'],
-                configuration.credentials['password'],
-                configuration.credentials['host'],
-                configuration.credentials['port'],
-                configuration.credentials['database']),
-            '-f', configuration.backup_filepath],
+                credentials['user'],
+                credentials['password'],
+                credentials['host'],
+                credentials['port'],
+                credentials['dbname']),
+            '-f', backup_filepath],
             stdout=PIPE
         )
         output = process.communicate()[0]
@@ -194,27 +212,23 @@ class DBAdmin:
             exit(1)
         return output
 
-            
-    @logging_decorator
-    @exception_handler
-    def restore(self, configuration):
+    #TODO 
+    def restore(self, dbname, restore_filepath):
         """Restore postgres from file
-
-        This is also used to refresh the database with the latest
-        export from the source website.  It is advised to BACKUP THE ORIGINAL
-        before restoring.
 
         Parameters
         ----------
-        configuration : class
-            Class containing credentials and  filename for restoration
-        """      
+        dbname (str): the name of the database as defined in the credentials file.
+        restore_filepath (str): the filepath from which the database will be restored. 
+
+        """  
+        config = Credentials()
+        credentials = config(dbname)
         
-        restore_filepath = configuration.filepath
         restore_cmd = "pg_dump -e -v -O -x -h {host} -d {database} \
                         -U {user} -p {port} --clean --no-owner -Fc -f {filepath}"\
-                        .format(configuration.host, configuration.database,
-                                configuration.user, configuration.port,
+                        .format(credentials.host, credentials.database,
+                                credentials.user, credentials.port,
                                 restore_filepath)
 
         restore_cmd = shlex.split(restore_cmd)

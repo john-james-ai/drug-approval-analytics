@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Sunday, July 4th 2021, 6:46:35 pm                                 #
-# Modified : Friday, July 9th 2021, 6:39:08 pm                                 #
+# Modified : Friday, July 16th 2021, 3:06:13 am                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -21,17 +21,18 @@
 #%%
 import pytest
 
-from config.config import AACTConfig
-from approval.data.database import DBAdmin, DBDao
+from src.data.database import DBAdmin
 # -----------------------------------------------------------------------------#
 
 @pytest.mark.database
 class DBAdminTests:
 
-    def test_backup(self):
-        aact_config = AACTConfig('aact')
-        db = DBAdmin()
-        db.backup(aact_config)
+    def test_create_datebase(self):
+        
+        dba = DBAdmin()
+        dbname = 'test'
+        db = dba.create_database(dbname)
+        assert db == dbname, "Error: Database creation was not successful"        
 
 @pytest.mark.dbdao
 class DBDaoTests:
@@ -53,7 +54,7 @@ class DBDaoTests:
 
 def main():
     dbt = DBAdminTests()
-    dbt.test_backup()    
+    dbt.test_create_datebase()
 
 
 if __name__ == "__main__":

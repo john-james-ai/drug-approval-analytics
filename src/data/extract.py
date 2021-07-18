@@ -1,23 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 #==============================================================================#
-# Project  : Predict-FDA                                                       #
+# Project  : Drug Approval Analytics                                           #
 # Version  : 0.1.0                                                             #
-# File     : \sources.py                                                       #
+# File     : \src\data\extract.py                                              #
 # Language : Python 3.9.5                                                      #
 # -----------------------------------------------------------------------------#
 # Author   : John James                                                        #
 # Company  : nov8.ai                                                           #
 # Email    : john.james@nov8.ai                                                #
-# URL      : https://github.com/john-james-sf/predict-fda                      #
+# URL      : https://github.com/john-james-sf/drug-approval-analytics          #
 # -----------------------------------------------------------------------------#
-# Created  : Thursday, July 1st 2021, 9:54:37 pm                               #
-# Modified : Tuesday, July 13th 2021, 4:33:00 am                               #
+# Created  : Saturday, July 17th 2021, 2:00:13 pm                              #
+# Modified : Saturday, July 17th 2021, 5:26:31 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
 # Copyright: (c) 2021 nov8.ai                                                  #
 #==============================================================================#
+"""Data Sources Module
+
+This module defines the data sources used in the project. A DataSource base
+class defines the interface and attributes inherited by source specific
+descendent classes.  All datasources are stored in the PostgreSQL metadata
+database using Object-relational mapping capabilities of SQLAlchemy. 
+
+"""
 import os
 from datetime import datetime, timedelta
 import requests
@@ -36,35 +44,33 @@ from sqlalchemy.schema import ForeignKey
 from sqlalchemy.dialects.postgresql import JSON, ARRAY
 from sqlalchemy.ext.hybrid import hybrid_property
 
-from approval.logging import exception_handler, logging_decorator, Logger
-from approval.utils.dates import Parser
-from approval.database import Base
+from ..utils.config import Config
+from .database import Base
 # -----------------------------------------------------------------------------#
 class DataSource(Base):
-    """Standard object that represents data source objects.
+    """Class defining a data source used in this project.
 
     Arguments
     ----------
-        configuration (dict): Dictionary with name, webpage, baseurl, and
-            other configuration items for the datasource.
+        name (str): The name of the data source
 
     Attributes        
         name (str): Name of object. 
         title (str): The title for the source.
-        description (str): A text description for reporting purposes
-        coverage (str): The temporal range of the data.
+        description (str): A text description for reporting purposes        
         creator (str): The organization responsible for producing the source.
         maintainer (str): The organization that maintains the data and its distribution        
         webpage (str): Webpage containing the data
-        baseurl (str): The baseurl for target url(s)
-        urls (str): List of links to target resources.
-        valid_url_exists (bool): False if no valid URL exists for a source.
-        media_type (str): The format, or more formally, the MIME type of the data as per RFC2046
-        destination (str): The directory into which the data will be stored.      
-        update_frequency (str): The frequency by which the source is updated.  
+        url_type (str): The type of url, i.e. baseurl or direct to the resource
+        url (str): The url value of the aforementioned type.
+        metadata (str): URL to additional metadata if available.
+        media_type (str): The format, or more formally, the MIME type of the data as per RFC2046        
+        frequency (str): The frequency by which the source is updated.  
+        coverage (str): The temporal range of the data if available.
         lifecycle (int): The number of days between data refresh at the source             
         last_updated (DateTime): The date the source links were last updated
         last_extracted (DateTime): The date the source was last extracted
+        last_staged (DateTime): The date the source was last staged
 
         created (DateTime): The datetime this object was created
         updated (DateTime): The datetime this object was last updated.
@@ -73,17 +79,21 @@ class DataSource(Base):
 
     id = Column(Integer, primary_key=True)
     _name = Column('name', String(20))
+    _title = Column('name', String(120))
+    _description = Column('description', String(240))
+    _creator = Column('creator', String(40))
+    _maintainer = Column('maintainer', String(40))
     _webpage = Column('webpage', String(80))    
-    _baseurl = Column('baseurl', String(120))
-    _urls = Column('urls', ARRAY(String))
-    _valid_url_exists = Column('valid_url_exists', Boolean)
-    _extract_dir = Column('extract_dir', String(50))
-    _staging_dir = Column('staging_dir', String(50))
+    _url_type = Column('url_type', String(80))    
+    _url = Column('url', String(120))
+    _metadata =  Column('metadata', String(80))    
+    _media_type =  Column('media_type', String(16))    
+    _frequency =  Column('frequency', String(32))    
+    _coverage =  Column('coverage', String(40))    
     _lifecycle = Column('lifecycle', Integer)
     _last_updated = Column('last_updated', DateTime)                
     _last_extracted = Column('last_extracted', DateTime)     
     _last_staged = Column('last_staged', DateTime)         
-    _last_executed =  Column('last_executed', DateTime)     
     _created = Column('created', DateTime) 
     _updated = Column('updated', DateTime) 
     
@@ -95,41 +105,45 @@ class DataSource(Base):
         'polymorphic_on': type
     }
 
-    def __init__(self, configuration):
-        self._name = configuration.name
-        self._webpage = configuration.webpage
-        self._baseurl = configuration.baseurl
-        self._extract_dir = configuration.extract_dir
-        self._staging_dir = configuration.staging_dir
-        self._lifecycle = configuration.lifecycle
-        self._last_updated = datetime(1970,1,1)
-        self._last_extracted = datetime(1970,1,1)
-        self._last_staged = datetime(1970,1,1)
-        self._last_executed = datetime(1970,1,1)
+    def __init__(self, name):
+        parser = Config()
+        config = parser.get_section(name)
+
+        self._name = name
+        self._title = config.title
+        self._description = config.description
+        self._creator = config.creator
+        self._maintainer = config.maintainer
+        self._webpage = config.webpage
+        self._url = config.url
+        self._url_type = config.url_type
+        self._metadata = config.metadata
+        self._media_type = config.media_type
+        self._frequency = config.frequency
+        self._coverage = config.coverage
+        self._lifecycle = config.lifecycle
+        self._last_updated = config.last_updated
+        self._last_extracted = config.last_extracted
+        self._last_staged = config.last_staged
 
         self._created = datetime.now()
         self._updated = datetime.now()
 
         self._urls = []
-        self._valid_url_exists = True
 
     def __str__(self):
-        return "{classname}({name},{webpage},{baseurl},{lifecycle})".format(
-            classname=self.__class__.__name__,
-            name=str(self.name),
-            webpage=str(self._webpage),
-            baseurl=str(self._baseurl),
-            lifecycle=str(self._lifecycle)
-        )
+        text = ""
+        text += "DataSource"
+        text += "----------"
+        for key, value in __dict__:
+            text += "{} = {}".format(key,value)
+        text += "----------"
+        return text
 
     def __repr__(self):
-        return "{classname}({name},{webpage},{baseurl},{lifecycle})".format(
+        return "{classname}({name})".format(
             classname=self.__class__.__name__,
-            name=repr(self.name),
-            webpage=repr(self._webpage),
-            baseurl=repr(self._baseurl),
-            lifecycle=repr(self._lifecycle)
-        )
+            name=repr(self._name))
 
     # ----------------------------------------------------------------------- #
     #                     PUBLIC METHODS (AS PROPERTIES)                      #
@@ -207,11 +221,11 @@ class DataSource(Base):
         self._last_staged = last_staged
 
     @hybrid_property
-    def last_executed(self):
+    def last_accessed(self):
         return self._last_executed
 
-    @last_extracted.setter
-    def last_executed(self, last_executed):
+    @last_accessed.setter
+    def last_accessed(self, last_executed):
         self._last_executed = last_executed        
                 
     @hybrid_property
@@ -237,13 +251,12 @@ class AACTDataSource(DataSource):
         'polymorphic_identity': 'aact_datasource',
     } 
 
-    def __init__(self, configuration):
-        super(AACTDataSource, self).__init__(configuration)      
+    def __init__(self, config):
+        super(AACTDataSource, self).__init__(config)      
 
     # ----------------------------------------------------------------------- #
     #                           PUBLIC METHODS                                #
     # ----------------------------------------------------------------------- #    
-    @exception_handler       
     def update_data_source_information(self):
         """Obtains and validates urls and timestamps associated with the data"""
 
@@ -289,13 +302,12 @@ class DrugsDataSource(DataSource):
         'polymorphic_identity': 'drugs_datasource',
     }     
 
-    def __init__(self, configuration):
-        super(DrugsDataSource, self).__init__(configuration)           
+    def __init__(self, config):
+        super(DrugsDataSource, self).__init__(config)           
 
     # ----------------------------------------------------------------------- #
     #                           PUBLIC METHODS                                #
     # ----------------------------------------------------------------------- #    
-    @exception_handler       
     def update_data_source_information(self):
         """Obtains and validates urls and timestamps associated with the data"""
 
@@ -334,16 +346,15 @@ class LabelsDataSource(DataSource):
         'polymorphic_identity': 'labels_datasource',
     }         
 
-    def __init__(self, configuration):
-        super(LabelsDataSource, self).__init__(configuration)    
+    def __init__(self, config):
+        super(LabelsDataSource, self).__init__(config)    
         # Labels maintains a json file with all downloadable links. 
-        self._download_links = configuration.download_links           
+        self._download_links = config.download_links           
         self.update_data_source_information()
         
     # ----------------------------------------------------------------------- #
     #                           PUBLIC METHODS                                #
     # ----------------------------------------------------------------------- #    
-    @exception_handler       
     def update_data_source_information(self):
         """Obtains and validates urls and timestamps associated with the data"""        
 

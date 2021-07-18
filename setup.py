@@ -12,35 +12,17 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Monday, June 21st 2021, 3:10:24 am                                #
-# Modified :                                                                   #
+# Modified : Thursday, July 15th 2021, 9:52:16 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
 # Copyright: (c) 2021 nov8.ai                                                  #
 #==============================================================================#
-from setuptools import find_packages, setup
-
-setup(
-    name='DrugApproval',
-    packages=find_packages(),
-    version='0.1.0',
-    description="AI-Based Clinical Drug Development Approval Decision Support",
-    author='John James',
-    author_email="john.james@nov8.ai",    
-    license='BSD-3',
-    download_url='https://github.com/john-james-sf/DrugApproval',
-    classifiers=[
-
-    ]
-)
-
 """A setuptools based setup module.
 See:
 https://packaging.python.org/guides/distributing-packages-using-setuptools/
 https://github.com/pypa/sampleproject
 """
-
-# Always prefer setuptools over distutils
 from setuptools import setup, find_packages
 import pathlib
 
@@ -154,7 +136,7 @@ setup(
 
     # When your source code is in a subdirectory under the project root, e.g.
     # `src/`, it is necessary to specify the `package_dir` argument.
-    package_dir={'': 'DrugApproval'},  # Optional
+    package_dir={'': 'src'},  # Optional
 
     # You can just specify package directories manually here if your project is
     # simple. Or you can use find_packages().
@@ -165,7 +147,7 @@ setup(
     #
     #   py_modules=["my_module"],
     #
-    packages=find_packages(where='DrugApproval'),  # Required
+    packages=find_packages(where='src'),  # Required
 
     # Specify which Python versions you support. In contrast to the
     # 'Programming Language' classifiers above, 'pip install' will check this
@@ -197,7 +179,7 @@ setup(
     # If there are data files included in your packages that need to be
     # installed, specify them here.
     package_data={  # Optional
-        'config': ['metadata.cfg'],
+        []: ['config.cfg'],
     },
 
     # Although 'package_data' is the preferred approach, in some case you may
@@ -216,7 +198,7 @@ setup(
     # executes the function `main` from this package when invoked:
     entry_points={  # Optional
         'console_scripts': [
-            'DrugApproval=DrugApproval:main',
+            'DrugApproval=src:main',
         ],
     },
 
