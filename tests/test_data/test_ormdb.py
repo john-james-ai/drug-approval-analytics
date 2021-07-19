@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Friday, July 2nd 2021, 4:40:41 am                                 #
-# Modified : Sunday, July 11th 2021, 8:43:41 pm                                #
+# Modified : Monday, July 19th 2021, 3:26:56 am                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -29,7 +29,7 @@ from approval.data.datasources import DataSource, AACTDataSource, DrugsDataSourc
 from approval.data.dataobjects import DataObject
 from approval.database.orm import DataSourcesFactory, DataObjectsFactory
 from approval.database.orm import ORMDatabase, ORMDataSource, ORMDataObject
-from config.config import Credentials
+from config.config import DBConfig
 from approval.utils import files
 # -----------------------------------------------------------------------------#
 

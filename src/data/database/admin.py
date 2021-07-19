@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Thursday, July 15th 2021, 11:58:44 am                             #
-# Modified : Saturday, July 17th 2021, 10:23:18 pm                             #
+# Modified : Monday, July 19th 2021, 5:37:22 pm                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -29,96 +29,10 @@ from subprocess import Popen, PIPE
 import psycopg2
 from psycopg2 import connect, pool, sql
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-import pandas as pd
 import shlex
 
-from ..utils.config import Credentials
-# -----------------------------------------------------------------------------#
-#                       POSTGRES DATABASE CONNECTION                           #
-# -----------------------------------------------------------------------------# 
-class DBCon:
-
-    __connection_pool = None
-
-    @staticmethod
-    def initialise(credentials):         
-        DBCon.__connection_pool = pool.SimpleConnectionPool(2, 10, **credentials)
-
-    @staticmethod
-    def get_connection():        
-        con =  DBCon.__connection_pool.getconn()
-        return con
-        
-
-    @staticmethod
-    def return_connection(connection):        
-        DBCon.__connection_pool.putconn(connection)
-
-    @staticmethod
-    def close_all_connections():        
-        DBCon.__connection_pool.closeall()
-
-
-# -----------------------------------------------------------------------------#
-#                     DATA ACCESS OBJECT FOR POSTGRES DATABASES                #
-# -----------------------------------------------------------------------------#
-class DBDao:
-    def __init__(self, dbname):                
-        self._dbname = dbname
-        credentials = Credentials()
-        self._credentials = credentials(dbname)
-        DBCon.initialise(self._credentials) 
-        self._connection = DBCon.get_connection()                
-        self._schema_name = self._configuration.schema_name    
-        
-    def __del__(self):   
-        self._connection.close()
-
-    @property
-    def tables(self):        
-        """Returns a list of tables in the currently open database.
-
-        Returns
-        -------
-        list
-            Table names in the currently open database
-        """  
-        
-        query = "SELECT table_name FROM INFORMATION_SCHEMA.TABLES WHERE "
-        query += "table_schema = '{schema}';".format(schema=self._schema_name)
-        tables = list(pd.read_sql_query(query, con=self._connection)["table_name"].values)
-
-        # Remove internal metadata. This is some Rails or Oracle related database object.
-        tables.remove("ar_internal_metadata")
-        return tables        
-
-    def get_columns(self, table):
-        """Returns the list of columns and data types for the designated table
-
-        Parameters
-        ----------
-        table : str
-            The name of the table for which the columns are being requested.
-
-        Returns
-        -------
-        DataFrame
-            Columns and their datatypes for the table requested.
-        """        
-        query = "SELECT * FROM INFORMATION_SCHEMA.COLUMNS "
-        query += " WHERE table_schema = '{schema}' AND table_name = '{table}';"\
-            .format(schema=self._schema_name, table=table)        
-        columns = pd.read_sql_query(query, con=self._connection)
-        return columns    
-            
-        
-    def read_table(self, table, idx=None, coerce_float=True, parse_dates=None):
-        query = "SELECT * FROM {schema}.{table};".format(schema=self._schema_name,table=table)
-        df = pd.read_sql_query(sql=query, con=self._connection, index_col=idx, 
-                                coerce_float=coerce_float, parse_dates=parse_dates)
-        return df    
-
-
+from ...utils.config import DBConfig
+      
 # -----------------------------------------------------------------------------#
 #                       POSTGRSE DATABASE ADMINISTRATION                       #
 # -----------------------------------------------------------------------------#
@@ -141,20 +55,33 @@ class DBAdmin:
         #     "postgresql://user:pass@hostname/dbname",
         #     connect_args={"connection_factory": MyConnectionFactory}
         # )
-        config = Credentials()
-        credentials = config('postgres')
+        try:
+            # Obtain the database credentials from configuration file.
+            config = DBConfig()
+            credentials = config('postgres')
 
-        con = psycopg2.connect(**credentials)
-        con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            # Establish a connection to the database and set the commit isolationlevel.
+            con = psycopg2.connect(**credentials)
+            con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
-        cur = con.cursor()
-        cur.execute("DROP DATABASE IF EXISTS {} ;".format(dbname))        
-        cur.execute("CREATE DATABASE {} ;".format(dbname))
-        cur.execute("GRANT ALL PRIVILEGES ON DATABASE {} TO {} ;".format(dbname, credentials['user']))
+            # Obtain a cursor and execute the sql commands.
+            cur = con.cursor()
+            cur.execute("DROP DATABASE IF EXISTS {} ;".format(dbname))        
+            cur.execute("CREATE DATABASE {} ;".format(dbname))
+            cur.execute("GRANT ALL PRIVILEGES ON DATABASE {} TO {} ;".format(dbname, credentials['user']))
+
+            # Close the cursor and commit the changes.
+            cur.close()
+            con.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            logger.error(error)
+
+        finally:
+            if con is not None:
+                con.close()
 
         logger.info("Database {} created successfully.".format(dbname))
-
-        con.close()
+        
         return dbname
 
     def drop_database(self, dbname):
@@ -165,21 +92,96 @@ class DBAdmin:
         dbname (str): the name of the database as defined in the credentials file.
 
         """        
-        
-        config = Credentials()
-        credentials = config('postgres')
+        try:
+            # Obtain the database credentials from configuration file.
+            config = DBConfig()
+            credentials = config('postgres')
 
-        con = psycopg2.connect(**credentials)
-        con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+            # Establish a connection to the database and set the commit isolationlevel.
+            con = psycopg2.connect(**credentials)
+            con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
-        cur = con.cursor()
-        cur.execute("DROP DATABASE IF EXISTS {} ;".format(dbname))        
+            # Obtain a cursor and execute the sql commands.
+            cur = con.cursor()
+            cur.execute("DROP DATABASE IF EXISTS {} ;".format(dbname))     
+
+            # Close the cursor and commit the changes.
+            cur.close()
+            con.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            logger.error(error)
+
+        finally:
+            if con is not None:
+                con.close()
 
         logger.info("Database {} created deleted.".format(dbname))
 
         con.close()
         return dbname 
 
+
+    def database_exists(self, dbname):
+        """Prints database version if it exists.
+
+        Parameters
+        ----------
+        dbname (str): the name of the database as defined in the credentials file.
+
+        """ 
+        try:
+            # Obtain the database credentials from configuration file.
+            config = DBConfig()
+            credentials = config(dbname)
+
+            # Establish a connection to the database and set the commit isolationlevel.
+            con = psycopg2.connect(**credentials)
+
+            # Obtain a cursor and execute the sql commands.
+            cur = con.cursor()
+            cur.execute("SELECT version()")     
+            version = cur.fetchone()
+            print(version)
+
+            # Close the cursor and commit the changes.
+            cur.close()
+        except (Exception, psycopg2.DatabaseError) as error:
+            logger.error(error)
+
+        finally:
+            if con is not None:
+                con.close()
+                logger.info("Database connection closed.")
+
+        return version
+
+
+    def create_table(self, dbname, tablename, sql_command):
+
+        try:
+            # Obtain the database credentials from configuration file.
+            config = DBConfig()
+            credentials = config(dbname)
+
+            # Establish a connection to the database and set the commit isolationlevel.
+            con = psycopg2.connect(**credentials)
+            con.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+            # Obtain a cursor and execute the sql commands.
+            cur = con.cursor()
+            cur.execute(sql_command)        
+
+            # Close the cursor and commit the changes.
+            cur.close()
+            con.commit()
+        except (Exception, psycopg2.DatabaseError) as error:
+            logger.error(error)
+
+        finally:
+            if con is not None:
+                con.close()        
+        
+        logger.info("Table {} created.".format(tablename))
 
     # TODO
     def backup(self, dbname, backup_filepath):
@@ -191,7 +193,7 @@ class DBAdmin:
         backup_filepath (str): the backup relative filepath. 
 
         """             
-        config = Credentials()
+        config = DBConfig()
         credentials = config(dbname)
 
         backup_filepath = backup_filepath.format(date=datetime.now().strftime("%Y%m%d"))
@@ -222,7 +224,7 @@ class DBAdmin:
         restore_filepath (str): the filepath from which the database will be restored. 
 
         """  
-        config = Credentials()
+        config = DBConfig()
         credentials = config(dbname)
         
         restore_cmd = "pg_dump -e -v -O -x -h {host} -d {database} \

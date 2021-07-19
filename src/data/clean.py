@@ -3,7 +3,7 @@
 #==============================================================================#
 # Project  : Drug Approval Analytics                                           #
 # Version  : 0.1.0                                                             #
-# File     : \src\database\__init__.py                                         #
+# File     : \src\data\clean.py                                                #
 # Language : Python 3.9.5                                                      #
 # -----------------------------------------------------------------------------#
 # Author   : John James                                                        #
@@ -11,8 +11,8 @@
 # Email    : john.james@nov8.ai                                                #
 # URL      : https://github.com/john-james-sf/drug-approval-analytics          #
 # -----------------------------------------------------------------------------#
-# Created  : Saturday, July 17th 2021, 10:21:07 pm                             #
-# Modified : Saturday, July 17th 2021, 10:23:29 pm                             #
+# Created  : Sunday, July 18th 2021, 1:20:12 pm                                #
+# Modified : Sunday, July 18th 2021, 4:00:32 pm                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #

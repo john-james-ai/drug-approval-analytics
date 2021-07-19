@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/predict-fda                      #
 # -----------------------------------------------------------------------------#
 # Created  : Sunday, July 4th 2021, 6:46:35 pm                                 #
-# Modified : Friday, July 16th 2021, 3:06:13 am                                #
+# Modified : Sunday, July 18th 2021, 7:43:12 pm                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -20,43 +20,123 @@
 #==============================================================================#
 #%%
 import pytest
-
-from src.data.database import DBAdmin
+import logging
+import pandas as pd
+from src.data.database import DBAdmin, DBDao
 # -----------------------------------------------------------------------------#
+logging.basicConfig(level=logging.NOTSET)
+logger = logging.getLogger(__name__)
 
-@pytest.mark.database
+
+@pytest.mark.dbadmin
 class DBAdminTests:
 
-    def test_create_datebase(self):
-        
-        dba = DBAdmin()
-        dbname = 'test'
-        db = dba.create_database(dbname)
-        assert db == dbname, "Error: Database creation was not successful"        
+    def __init__(self):
+        dbadmin = DBAdmin()
+        dbadmin.drop_database('metadata')        
 
-@pytest.mark.dbdao
+    def test_database_exists(self):
+        dbadmin = DBAdmin()
+        version = dbadmin.database_exists('AACT')
+        assert version is not None, "Error: Database version not returned"        
+    
+    def test_create_db(self):
+        dbadmin = DBAdmin()
+        dbadmin.create_database('metadata')        
+        version = dbadmin.database_exists('metadata')
+        assert version is not None, "Error: Database not created."
+
+    #TODO
+    def test_drop_db(self):
+        pass    
+
+    #TODO
+    def test_backup_db(self):
+        pass       
+
+    #TODO
+    def test_restore_db(self):
+        pass            
+
+    def test_create_table(self):
+        # Create table
+        dbadmin = DBAdmin()
+        sql_command = (
+            """
+            CREATE TABLE attributes (
+                id SERIAL PRIMARY KEY,                
+                attribute VARCHAR(120) NOT NULL,
+                entity VARCHAR(48) NOT NULL,
+                datatype VARCHAR(48) NOT NULL
+            )
+            """
+        )
+        dbadmin.create_table('metadata', 'attributes', sql_command)
+
+        # Get list of tables from Dao
+        dao = DBDao('metadata')
+        assert 'attributes' in dao.get_tables(), "Error: Table not in schema."
+
+
+
 class DBDaoTests:
+
+    def __init__(self, filepath):        
+        self._data = pd.read_csv(filepath)
+        self._dao = DBDao('metadata')
+
+    def test_load(self):        
+        self._dao.load(table='attributes', df = self._data)
+
     def test_read_table(self):
-        aact_config = AACTConfig('aact')
-        db = DBDao(aact_config)
-        data = db.read_table('studies')
-        assert data.shape[0] > 1000, "Error reading 'studies' table"
+        df = self._dao.read_table('attributes')
+        assert df.shape[0] > 100, "Error: Expected shape[0] > 100, Actual = {}.".format(df.shape[0])
+        assert df.shape[1] == 4, "Error: Expected shape[1] = 4, Actual = {}.".format(df.shape[1])
 
+    def test_update(self):
+        self._dao.update('attributes', 'datatype', 'Date', 'attribute', 'phase')
+        df = self._dao.read_table('attributes', 'attribute', 'phase').reset_index()        
+        assert df[df["attribute"] == "phase"]['datatype'].any() == 'Date', "Error: Update didn't work."
 
-    def test_get_columns(self):
-        aact_config = AACTConfig('aact')
-        db = DBDao(aact_config)
-        tables = db.tables        
-        columns = db.get_columns("studies")        
-        assert len(tables) > 50, "Error reading tables from DBAdmin" 
-        assert columns.shape[0] > 0, "Error reading columns from DBAdmin"
-        assert columns.shape[1] > 0, "Error reading columns from DBAdmin"    
+    def test_read(self):
+        df = self._dao.read('attributes', 'attribute', 'phase')
+        assert df['datatype'].any() == 'Date', "Error, read didn't work."
+
+    def test_delete(self):
+        self._dao.delete('attributes', 'attribute', 'phase')
+        df = self._dao.read('attributes', 'attribute', 'phase')
+        assert df.shape[0] == 0, "Error, delete didn't work."
+
+    def test_columns(self):
+        columns = self._dao.get_columns('attributes', metadata=False)
+        assert len(columns) == 4, "Error, Number of columns is incorrect"
+        assert 'datatype' in columns, "Error, Columns didn't work"
+
+        columns = self._dao.get_columns('attributes', metadata=True)
+        assert len(columns) > 4, "Error, Number of columns is incorrect"
+        assert 'scope_schema' in columns, "Error, Columns didn't work"
+
+    def test_teardown(self):
+        del(self._dao)
+
 
 def main():
-    dbt = DBAdminTests()
-    dbt.test_create_datebase()
+    dbadmin = DBAdminTests()
+    dbadmin.test_database_exists()
+    dbadmin.test_create_db()    
+    dbadmin.test_create_table()
+
+    filepath = "./data/metadata/aact_metadata.csv"
+    dbao = DBDaoTests(filepath)
+    dbao.test_load()
+    dbao.test_read_table()
+    dbao.test_update()
+    dbao.test_read()
+    dbao.test_delete()
+    dbao.test_columns()
+    logger.info("DataBase Tests Complete")
 
 
 if __name__ == "__main__":
     main()   
-
+#%%

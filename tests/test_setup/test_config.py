@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics          #
 # -----------------------------------------------------------------------------#
 # Created  : Thursday, July 15th 2021, 10:02:18 pm                             #
-# Modified : Saturday, July 17th 2021, 11:32:37 pm                             #
+# Modified : Monday, July 19th 2021, 3:26:56 am                                #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -23,7 +23,7 @@ import os
 import pytest
 from configparser import ConfigParser
 
-from src.utils.config import Config, Credentials, DataSourcesConfig
+from src.utils.config import Config, DBConfig, DataSourcesConfig
 
 @pytest.mark.setup
 class ConfigTests:
@@ -130,7 +130,7 @@ class ConfigTests:
         filepath = "./credentials.cfg"
         dbname ='bogus'
 
-        cred = Credentials(filepath)
+        cred = DBConfig(filepath)
         with pytest.raises(Exception):
             credentials = cred(dbname)
         dbname = 'metadata'
