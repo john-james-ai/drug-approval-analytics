@@ -9,8 +9,9 @@ __pycache__/
 *.ini
 *.cfg
 
-# Notes
+# Internal information
 notes/
+src/lab/
 
 # Logs
 logs/
@@ -20,7 +21,6 @@ admin/
 
 # Reports
 */*.html
-
 
 # Distribution / packaging
 .Python

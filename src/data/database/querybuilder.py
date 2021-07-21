@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics          #
 # -----------------------------------------------------------------------------#
 # Created  : Monday, July 19th 2021, 2:26:36 pm                                #
-# Modified : Monday, July 19th 2021, 5:59:30 pm                                #
+# Modified : Tuesday, July 20th 2021, 12:24:29 am                              #
 # Modifier : John James (john.james@nov8.ai)                                   #
 # -----------------------------------------------------------------------------#
 # License  : BSD 3-clause "New" or "Revised" License                           #
@@ -23,11 +23,12 @@ from abc import ABC, abstractmethod
 import psycopg2
 from psycopg2 import sql
 # -----------------------------------------------------------------------------#
-class QueryTemplateGen(ABC):
+class QueryBuilder(ABC):
     """Generates sql query templates for parameterized pyscopg2 SQL statements. """
 
-    def __init__(self):
+    def __init__(self, name=None):        
         self.reset()
+        self._name = name
 
     @abstractmethod
     def reset(self):
@@ -38,31 +39,39 @@ class QueryTemplateGen(ABC):
         return self
         
     @abstractmethod
-    def gen(self):
+    def get(self):
         pass
 # -----------------------------------------------------------------------------#
-class CreateDatabase(QueryTemplateGen):
+#                          DATABASE ADMIN                                      #    
+# -----------------------------------------------------------------------------#
+class CreateDatabase(QueryBuilder):
+
+    def __init__(self, name=None):
+        super(CreateDatabase,self).__init__(name)    
 
     def reset(self):
         self._name = None
 
-    def gen(self):
+    def get(self):
         return sql.SQL("CREATE DATABASE {}").format(sql.Identifier(self._name))
 
 # -----------------------------------------------------------------------------#
-class DropDatabase(QueryTemplateGen):
+class DropDatabase(QueryBuilder):
+
+    def __init__(self, name=None):
+        super(DropDatabase,self).__init__(name)    
 
     def reset(self):
         self._name = None
 
-    def gen(self):
+    def get(self):
         return sql.SQL("DROP DATABASE IF EXISTS {}").format(sql.Identifier(self._name))
 
 # -----------------------------------------------------------------------------#
-class CreateTable(QueryTemplateGen):
+class CreateTable(QueryBuilder):
 
-    def __init__(self):
-        super(CreateTable,self).__init__()
+    def __init__(self, name=None):
+        super(CreateTable,self).__init__(name)
 
     def reset(self):
         self._name = None
@@ -98,10 +107,10 @@ class CreateTable(QueryTemplateGen):
         self._foreign_keys[name]['refcolumn'] = refcolumn
         return self
 
-    def _gen_command(self):
+    def _get_command(self):
         self._sql_command = "CREATE TABLE {} (".format(self._name)
 
-    def _gen_columns(self):
+    def _get_columns(self):
         cols = []
         for name, properties in self._columns.items():            
             column_properties = []
@@ -114,29 +123,60 @@ class CreateTable(QueryTemplateGen):
             cols.append(column_properties)
         self._sql_command += ", ".join(cols)
 
-    def _gen_primary_key(self):
+    def _get_primary_key(self):
         if len(self._primary_key) > 0:
             pk = ", ".join(self._primary_key)
             self._sql_command += "PRIMARY KEY ({})".format(pk)
 
-    def _gen_foreign_key(self):
+    def _get_foreign_key(self):
         if len(self._foreign_keys) > 0:
             for name, params in self._foreign_keys.items():                
                 self._sql_command += "CONSTRAINT {} ".format(name)
                 self._sql_command += "FOREIGN KEY ({}) ".format(params['refcolumn'])
                 self._sql_command += "REFERENCES {}({}) ".format(params['reftable'],params['refcolumn'])
 
-    def _gen_closing(self):
+    def _get_closing(self):
         self._sql_command += ");"
         
-    def gen(self):
-        self._gen_command()
-        self._gen_columns()
-        self._gen_primary_key()
-        self._gen_foreign_key()
-        self._gen_closing()
-        return self._sql_command
+    def get(self):
+        self._get_command()
+        self._get_columns()
+        self._get_primary_key()
+        self._get_foreign_key()
+        self._get_closing()
+        return sql.SQL(self._sql_command)
 
+# -----------------------------------------------------------------------------#
+class DropTable(QueryBuilder):
+
+    def __init__(self, name=None):
+        super(DropTable, self).__init__(name)
+
+    def reset(self):
+        self._name = None
+        return self        
+
+    def get(self):
+        self._sql_command = sql.SQL(
+            """DROP TABLE IF EXISTS {}""").format(
+                sql.Identifier(self._name))
+        return self._sql_command
         
+# -----------------------------------------------------------------------------#
+class TableExists(QueryBuilder):
+
+    def __init__(self, name=None):
+        super(TableExists, self).__init__(name)
+
+    def reset(self):
+        self._name = None
+        return self        
+
+    def get(self):
+        self._sql_command = sql.SQL(
+            """SELECT EXISTS (
+                SELECT FROM information_schema.tables
+                WHERE table_name = %s)""")
+        return self._sql_command
     
 
