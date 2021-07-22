@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 9:27:37 am                            #
-# Modified : Wednesday, July 21st 2021, 10:22:21 pm                           #
+# Modified : Thursday, July 22nd 2021, 1:16:55 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -84,6 +84,23 @@ class Element(ABC):
         self._uri = uri
         self._description = description
 
+    def __str__(self):
+        text = "\n"
+        text += "                            Input Element Id: " + \
+            str(self._id) + "\n"
+        text += "                                        Name: " + \
+            str(self._name) + "\n"
+        text += "                                 Description: " + \
+            str(self._description) + "\n"
+
+        text += "# -------------------------------------"
+        text += "-------------------------------------- #\n"
+        return text
+
+    def __repr__(self):
+        return f'Element(name={self._name}, uri={self._uri}, \
+            description={self._description})'
+
     @property
     def id(self) -> UUID:
         return self._id
@@ -143,6 +160,33 @@ class Step(ABC):
         self._started = None
         self._stopped = None
         self._return = Return()
+        self._pipeline_id = None
+
+    def __str__(self):
+        text = "\n"
+        text += "                         Step Id: " + str(self._id) + "\n"
+        text += "                               Name: " + \
+            str(self._name) + "\n"
+        text += "                        Description: " + \
+            str(self._description) + "\n"
+        text += "                            Started: " + \
+            str(self._started) + "\n"
+        text += "                              Ended: " + \
+            str(self._stopped) + "\n"
+        text += "                        Return Code: " + \
+            str(self._return.code) + "\n"
+        text += "                              State: " + \
+            str(self._return.description) + "\n"
+
+        text += "# -------------------------------------"
+        text += "-------------------------------------- #\n"
+        text += self._step_in.__str__
+        text += self._step_out.__str__
+        return text
+
+    def __repr__(self):
+        return f'Step(name={self._name}, description={self._description}, \
+            step_in={self._step_in}, step_out={self._step_out})'
 
     def _start(self) -> None:
         self._started = datetime.now()
@@ -208,6 +252,14 @@ class Step(ABC):
     def stopped(self) -> str:
         return self._stopped
 
+    @property
+    def pipeline_id(self) -> UUID:
+        return self._pipeline_id
+
+    @pipeline_id.setter
+    def pipeline_id(self, pipeline_id: UUID) -> None:
+        self._pipeline_id = pipeline_id
+
 
 # --------------------------------------------------------------------------- #
 class Pipeline:
@@ -237,7 +289,24 @@ class Pipeline:
         self._started = None
         self._stopped = None
 
+    def __str__(self):
+        text = "\n"
+        text += "             Pipeline Id: " + str(self._id) + "\n"
+        text += "                    Name: " + str(self._name) + "\n"
+        text += "                   Stage: " + str(self._stage) + "\n"
+        text += "             Description: " + str(self._description) + "\n"
+        text += "# -------------------------------------"
+        text += "-------------------------------------- #\n"
+        for step in self._steps:
+            text += step.__str__()
+        return text
+
+    def __repr__(self):
+        return f'Pipeline(name={self._name}, description={self._description}, \
+            stage={self._stage})'
+
     def add_step(self, step: Step) -> None:
+        step.pipeline_id = self._id
         self._steps.append(step)
 
     def _start(self) -> None:
@@ -254,6 +323,7 @@ class Pipeline:
         self._start()
         self._run()
         self._stop()
+        return self._return
 
     @property
     def id(self) -> UUID:
@@ -280,6 +350,10 @@ class Pipeline:
         self._stage = stage
 
     @property
+    def steps(self) -> list:
+        return self._steps
+
+    @property
     def started(self) -> str:
         return self._started
 
@@ -288,13 +362,64 @@ class Pipeline:
         return self._stopped
 
     @property
+    def event_id(self) -> UUID:
+        return self._event_id
+
+    @event_id.setter
+    def event_id(self, event_id: UUID) -> None:
+        self._event_id = event_id
+
+    @property
     def return_value(self) -> Return:
-        return self._return_value
+        return self._return
 
 # --------------------------------------------------------------------------- #
 
 
-class Event():
+class Event:
+    """An execution of a Pipeline object."""
+
+    def __init__(self, pipeline: Pipeline) -> None:
+        self._id = uuid4()
+        self._pipeline = pipeline
+        self._pipeline.event_id = self._id
+        self._started = None
+        self._stopped = None
+        self._return = Return()
+
+    def __str__(self):
+        text = "\n"
+        text += "        Event Id: " + str(self._id) + "\n"
+        text += "# -------------------------------------"
+        text += "-------------------------------------- #\n"
+        text += "         Started: " + str(self._started)
+        text += "           Ended: " + str(self._started)
+        text += "     Return Code: " + self._return.code
+        text += "           State: " + self._return.description
+        text += "# -------------------------------------"
+        text += "-------------------------------------- #\n"
+        text += self._pipeline.__str__()
+        return text
+
+    def __repr__(self):
+        return f'Event(pipeline={self._pipeline})'
+
+    def execute(self) -> None:
+        self._started = datetime.now()
+        self._return = self._pipeline.execute()
+        self._stopped = datetime.now()
+        return self._return
+
+    @property
+    def return_value(self) -> Return:
+        return self._return
+
+    @property
+    def pipeline(self):
+        return self._pipeline
+
+
+class PipelineManager:
     """Encapsulates a Pipeline execution.
 
     Wraps the Pipeline class inside an Event. Decoupling the Pipeline from
@@ -305,27 +430,32 @@ class Event():
 
     """
 
-    def __init__(self, pipeline: Pipeline) -> None:
-        self._id = uuid4()
-        self._pipeline = pipeline
-        self._return = Return()
-        self._repositories = Repositories()
+    def __init__(self, repositories: Repositories) -> None:
+        self._repositories = repositories
+
+    def __str__(self):
+        return f'Event(repositories={self._repositories})'
+
+    def __repr__(self):
+        return f'Event(repositories={self._repositories})'
+
+    def create_event(self, pipeline: Pipeline) -> Event:
+        self._event = Event(pipeline)
 
     def execute(self) -> None:
-        self._return = self._pipeline.execute()
+        self._pipeline.execute()
 
     def save(self) -> None:
-        # TODO: repository update
-        pass
+        self._repositories.save(self._pipeline)
 
-    @property
-    def id(self) -> UUID:
-        return self._id
+    def get_event(self, name: str) -> Event:
+        return self._repositories.events.get(name)
 
-    @property
-    def pipeline(self):
-        return self._pipeline
+    def get_events(self) -> Event:
+        return self._repositories.events.get_all()
 
-    @property
-    def return_value(self) -> Return:
-        return self._return
+    def delete_event(self, name: str) -> None:
+        self._repositories.event.delete(name)
+
+    def delete_events(self) -> None:
+        self._repositories.event.delete_all()
