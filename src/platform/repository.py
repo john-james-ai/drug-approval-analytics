@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 1:25:36 pm                            #
-# Modified : Wednesday, July 21st 2021, 6:04:55 pm                            #
+# Modified : Thursday, July 22nd 2021, 1:18:08 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -31,23 +31,35 @@ Dependencies:
     Element: Class defining pipeline inputs and outputs
     Step: Class defining pipeline tasks
     Pipeline: Class defining the pipeline engine
-    PipelineDatabaseAccessObject: Access object for the database.
+    PipelineDatabaseAccessObject: Connection to this access object.
 
 """
 from abc import ABC, abstractmethod
 
 from .pipeline import Element, Step, Pipeline, Event
-from .database import PipelineDatabaseAccessObject
+from .connection import PipelineDatabaseAccessObject
 # --------------------------------------------------------------------------- #
 
 
 class Repository(ABC):
-    """Base class for repositories."""
+    """Base class for all repositories..
+
+    Arguments:
+        connection: PipelineDatabaseAccessObject.connection
+
+    """
 
     table = None
 
-    def __init__(self, database):
-        self._database = database
+    def __init__(self, connection):
+        self._connection = connection
+
+    def open(self) -> None:
+        self._cursor = self._connection.cursor()
+
+    def close(self) -> None:
+        self._cursor.commit()
+        self._connection.close()
 
     @abstractmethod
     def add(self, *args, **kwargs) -> None:
@@ -79,32 +91,32 @@ class Elements(Repository):
     """Repository for Pipeline Element objects.
 
     Arguments:
-        database: PipelineDatabaseAccessObject
+        connection: PipelineDatabaseAccessObject.connection
 
     """
 
     table = 'elements'
 
-    def __init__(self, database):
-        super(Elements, self).__init__(database)
+    def __init__(self, connection):
+        super(Elements, self).__init__(connection)
 
     def add(self, element: Element) -> None:
-        self._database.add(Elements.table, element)
+        self._connection.add(Elements.table, element)
 
     def get(self, name: str) -> Element:
-        return self._database.get(Elements.table, name)
+        return self._connection.get(Elements.table, name)
 
     def get_all(self) -> list:
-        return self._database.get_all('element')
+        return self._connection.get_all('element')
 
     def update(self, element: Element) -> None:
-        self._database.update(Elements.table, element)
+        self._connection.update(Elements.table, element)
 
     def delete(self, name: str) -> None:
-        self._database.delete(Elements.table, name)
+        self._connection.delete(Elements.table, name)
 
     def delete_all(self) -> None:
-        self._database.delete_all(Elements.table)
+        self._connection.delete_all(Elements.table)
 # --------------------------------------------------------------------------- #
 
 
@@ -112,32 +124,32 @@ class Steps(Repository):
     """Repository for Pipeline Step objects.
 
     Arguments:
-        database: PipelineDatabaseAccessObject
+        connection: PipelineDatabaseAccessObject.connection
 
     """
 
     table = 'steps'
 
-    def __init__(self, database):
-        super(Steps, self).__init__(database)
+    def __init__(self, connection):
+        super(Steps, self).__init__(connection)
 
     def add(self, step: Step) -> None:
-        self._database.add(Steps.table, step)
+        self._connection.add(Steps.table, step)
 
     def get(self, name: str) -> Step:
-        return self._database.get(Steps.table, name)
+        return self._connection.get(Steps.table, name)
 
     def get_all(self) -> list:
-        return self._database.get_all(Steps.table)
+        return self._connection.get_all(Steps.table)
 
     def update(self, step: Step) -> None:
-        self._database.update(Steps.table, step)
+        self._connection.update(Steps.table, step)
 
     def delete(self, name: str) -> None:
-        self._database.delete(Steps.table, name)
+        self._connection.delete(Steps.table, name)
 
     def delete_all(self) -> None:
-        self._database.delete_all(Steps.table)
+        self._connection.delete_all(Steps.table)
 
 
 # --------------------------------------------------------------------------- #
@@ -145,32 +157,32 @@ class Pipelines(Repository):
     """Repository for Pipeline Pipeline objects.
 
     Arguments:
-        database: PipelineDatabaseAccessObject
+        connection: PipelineDatabaseAccessObject.connection
 
     """
 
     table = 'pipelines'
 
-    def __init__(self, database):
-        super(Pipelines, self).__init__(database)
+    def __init__(self, connection):
+        super(Pipelines, self).__init__(connection)
 
     def add(self, pipeline: Pipeline) -> None:
-        self._database.add(Pipelines.table, pipeline)
+        self._connection.add(Pipelines.table, pipeline)
 
     def get(self, name: str) -> Pipeline:
-        return self._database.get(Pipelines.table, name)
+        return self._connection.get(Pipelines.table, name)
 
     def get_all(self) -> list:
-        return self._database.get_all(Pipelines.table)
+        return self._connection.get_all(Pipelines.table)
 
     def update(self, pipeline: Pipeline) -> None:
-        self._database.update(Pipelines.table, pipeline)
+        self._connection.update(Pipelines.table, pipeline)
 
     def delete(self, name: str) -> None:
-        self._database.delete(Pipelines.table, name)
+        self._connection.delete(Pipelines.table, name)
 
     def delete_all(self) -> None:
-        self._database.delete_all(Pipelines.table)
+        self._connection.delete_all(Pipelines.table)
 # --------------------------------------------------------------------------- #
 
 
@@ -178,32 +190,32 @@ class Events(Repository):
     """Repository for Pipeline Event objects.
 
     Arguments:
-        database: PipelineDatabaseAccessObject
+        connection: PipelineDatabaseAccessObject.connection
 
     """
 
     table = 'events'
 
-    def __init__(self, database):
-        super(Events, self).__init__(database)
+    def __init__(self, connection):
+        super(Events, self).__init__(connection)
 
     def add(self, event: Event) -> None:
-        self._database.add(Events.table, event)
+        self._connection.add(Events.table, event)
 
     def get(self, name: str) -> Event:
-        return self._database.get(Events.table, name)
+        return self._connection.get(Events.table, name)
 
     def get_all(self) -> list:
-        return self._database.get_all(Events.table)
+        return self._connection.get_all(Events.table)
 
     def update(self, event: Event) -> None:
-        self._database.update(Events.table, event)
+        self._connection.update(Events.table, event)
 
     def delete(self, name: str) -> None:
-        self._database.delete(Events.table, name)
+        self._connection.delete(Events.table, name)
 
     def delete_all(self) -> None:
-        self._database.delete_all(Events.table)
+        self._connection.delete_all(Events.table)
 
 
 # --------------------------------------------------------------------------- #
@@ -216,11 +228,27 @@ class Repositories:
     """
 
     def __init__(self):
-        database = PipelineDatabaseAccessObject()
-        self._elements = Elements(database)
-        self._steps = Steps(database)
-        self._pipelines = Pipelines(database)
-        self._events = Events(database)
+        self._database = PipelineDatabaseAccessObject()
+        self._connection = self._database.get_connection()
+        self._elements = Elements(self._connection)
+        self._steps = Steps(self._connection)
+        self._pipelines = Pipelines(self._connection)
+        self._events = Events(self._connection)
+
+    def open(self) -> None:
+        self._elements.open()
+        self._steps.open()
+        self._pipelines.open()
+        self._events.open()
+
+    def close(self) -> None:
+        self._elements.close()
+        self._steps.close()
+        self._pipelines.close()
+        self._events.close()
+
+    def save(self, event: Event) -> None:
+        self._open()
 
     @property
     def elements(self):
