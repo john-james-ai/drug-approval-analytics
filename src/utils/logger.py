@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 9:32:12 pm                            #
-# Modified : Saturday, July 24th 2021, 4:07:52 am                             #
+# Modified : Saturday, July 24th 2021, 6:01:37 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -33,24 +33,6 @@ import sys
 # --------------------------------------------------------------------------- #
 LOG_FRAME_TPL = '  File "%s", line %i, in %s\n    %s\n'
 log_filepath = 'exceptions.log',
-# create console handler and set level to debug
-logging.basicConfig(level=logging.DEBUG)
-logger = logging.getLogger(__name__)
-
-
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.DEBUG)
-
-# create formatter
-formatter = logging.Formatter(
-    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-# add formatter to ch
-console_handler.setFormatter(formatter)
-
-# add ch to logger
-logger.addHandler(console_handler)
-
 # --------------------------------------------------------------------------- #
 
 
@@ -62,14 +44,11 @@ def log_to_str(v):
         return str(v).replace('\n', '\\n')
 
 
-def exception_handler(logger: logging = logger,
-                      frame_template: str = LOG_FRAME_TPL,
+def exception_handler(frame_template: str = LOG_FRAME_TPL,
                       value_to_string: str = log_to_str,
                       log_if: bool = True) -> None:
     """ Exception handler decorator.
     Arguments:
-
-        logger (logging): The logging object.
 
         frame_template (string): a format string used to format frame
         information. The following format arguments will be used when
@@ -108,6 +87,22 @@ def exception_handler(logger: logging = logger,
   """
 
     def decorator(func):
+
+        logging.basicConfig(level=logging.DEBUG)
+        logger = logging.getLogger(func.__class__.__name__)
+
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+
+        # create formatter
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+        # add formatter to ch
+        console_handler.setFormatter(formatter)
+
+        # add ch to logger
+        logger.addHandler(console_handler)
 
         @functools.wraps(func)
         def wrapper(*args, **kwds):

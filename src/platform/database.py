@@ -12,29 +12,31 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:23:26 pm                               #
-# Modified : Saturday, July 24th 2021, 5:18:17 am                             #
+# Modified : Saturday, July 24th 2021, 6:14:03 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
 """Postgres database administration, access and connection pools. """
-from abc import ABC, abstractmethod
-from datetime import datetime
-import pandas as pd
-import numpy as np
-from psycopg2 import pool
-from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
-from subprocess import Popen, PIPE
+import logging
 from typing import Union
+from subprocess import Popen, PIPE
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from psycopg2 import pool
+import numpy as np
+import pandas as pd
+from datetime import datetime
+from abc import ABC, abstractmethod
 
-from ..utils.logger import exception_handler, logger
-from .querybuilder import CreateDatabase, DatabaseExists
-from .querybuilder import DropDatabase, GrantPrivileges
-from .querybuilder import CreateTable, DropTable
-from .querybuilder import ColumnInserter, ColumnRemover
+from ..utils.logger import exception_handler
 from .querybuilder import TableExists
-
+from .querybuilder import ColumnInserter, ColumnRemover
+from .querybuilder import CreateTable, DropTable
+from .querybuilder import DropDatabase, GrantPrivileges
+from .querybuilder import CreateDatabase, DatabaseExists
+# --------------------------------------------------------------------------- #
+logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
 #                              CONNECTION POOL                                #
@@ -284,12 +286,12 @@ class TableAdmin(Admin):
     """Database table administration."""
 
     @exception_handler()
-    def create(self, name: str, schema: str, columns: dict) -> None:
+    def create(self, name: str, schema: str, columns: list) -> None:
         """Creates a table according to the schema defined in the file.
 
         Arguments
             name (str): The name for the table.
-            schema (list): List of dict objects
+            schema (list): list of strings defining column properties
 
         """
         query = CreateTable()

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Saturday, July 24th 2021, 5:21:42 am                             #
+# Modified : Saturday, July 24th 2021, 6:31:26 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -121,21 +121,13 @@ class DatabaseExists(QueryBuilder):
 # --------------------------------------------------------------------------- #
 class CreateTable(QueryBuilder):
 
-    def build(self, name: str, schema: dict, columns: dict) -> SQLCommand:
-
-        # Create columns list and combine it into a single string
-        cols = []
-        for name, constraint in columns.items():
-            column = sql.SQL("{name} {constraint}").format(
-                name=sql.Identifier(name),
-                constraint=sql.Identifier(constraint))
-            cols.append(column)
-        expression = sql.SQL(", ").join(cols)
+    def build(self, name: str, schema: dict, columns: list) -> SQLCommand:
 
         query = sql.SQL("CREATE TABLE {schema}.{table} ({columns});").format(
             schema=sql.Identifier(schema),
             table=sql.Identifier(name),
-            columns=sql.Identifier(expression))
+            columns=sql.SQL(', ').join(map(
+                sql.Identifier(str(columns)))))
 
         command = SQLCommand(
             name="create_table",

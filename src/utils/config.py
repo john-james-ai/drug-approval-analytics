@@ -12,18 +12,18 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 15th 2021, 5:47:58 pm                             #
-# Modified : Saturday, July 24th 2021, 4:15:42 am                             #
+# Modified : Saturday, July 24th 2021, 6:04:26 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
-
 import os
+import logging
 from configparser import ConfigParser
-from .logger import logger
 import yaml
-
+# --------------------------------------------------------------------------- #
+logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
 
 

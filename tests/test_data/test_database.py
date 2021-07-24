@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, July 4th 2021, 6:46:35 pm                                #
-# Modified : Saturday, July 24th 2021, 5:13:56 am                             #
+# Modified : Saturday, July 24th 2021, 6:32:30 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -76,15 +76,10 @@ class TableTests:
 
     def _build_schema(self):
         filepath = "./data/metadata/repository.csv"
-        df = pd.read_csv(filepath, usecols=['column', 'command'])
-        config = df.to_dict()
-        columns = {}
-        for col, command in config.items():
-            columns[col] = command
+        columns = pd.read_csv(filepath, index_col=False, usecols=[
+            'command'])
+        columns = ", ".join(columns['command'])
         return columns
-        print('\n#', 80*"-", '#')
-        print(" "*27, "Database Schema Built!")
-        print('#', 80*"-", '#')
 
     def test_create_table(self):
         columns = self._build_schema()
