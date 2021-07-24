@@ -3,7 +3,7 @@
 # =========================================================================== #
 # Project  : Drug Approval Analytics                                          #
 # Version  : 0.1.0                                                            #
-# File     : \src\data\database\admin.py                                      #
+# File     : \src\utils\database.py                                           #
 # Language : Python 3.9.5                                                     #
 # --------------------------------------------------------------------------  #
 # Author   : John James                                                       #
@@ -11,23 +11,60 @@
 # Email    : john.james@nov8.ai                                               #
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
-# Created  : Monday, July 19th 2021, 1:39:19 pm                               #
-# Modified : Thursday, July 22nd 2021, 7:14:08 am                             #
+# Created  : Thursday, July 22nd 2021, 11:10:02 pm                            #
+# Modified : Friday, July 23rd 2021, 1:03:09 am                               #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
-
+"""This supports ."""
 from datetime import datetime
 import psycopg2
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+from psycopg2 import pool
 from subprocess import Popen, PIPE
 # import shlex
 from sys import exit
 
-from ...utils.logger import exception_handler, logger
-from ...utils.config import DBConfig
+from .logger import logger, exception_handler
+from .config import DBCredentials
+
+
+class DBCon:
+
+    __connection_pool = None
+
+    @exception_handler
+    @staticmethod
+    def initialise(credentials):
+        DBCon.__connection_pool = pool.SimpleConnectionPool(
+            2, 10, **credentials)
+        logger.info("Initialized connection pool for {} database.".format(
+            credentials['dbname']))
+
+    @exception_handler
+    @staticmethod
+    def get_connection():
+        con = DBCon.__connection_pool.getconn()
+        dbname = con.info.dsn_parameters['dbname']
+        logger.info(
+            "Getting connection from {} connection pool.".format(dbname))
+        return con
+
+    @exception_handler
+    @staticmethod
+    def return_connection(connection):
+        DBCon.__connection_pool.putconn(connection)
+        dbname = connection.info.dsn_parameters['dbname']
+        logger.info(
+            "Returning connection to {} connection pool.".format(dbname))
+
+    @exception_handler
+    @staticmethod
+    def close_all_connections():
+        DBCon.__connection_pool.closeall()
+
 
 # --------------------------------------------------------------------------- #
 #                       POSTGRES DATABASE ADMINISTRATION                      #
@@ -51,8 +88,7 @@ class DBAdmin:
         # decorator
 
         # Obtain the database credentials from configuration file.
-        config = DBConfig()
-        credentials = config('postgres')
+        credentials = DBCredentials()('postgres')
 
         # Establish a database connection and set the commit isolationlevel.
         con = psycopg2.connect(**credentials)
@@ -86,8 +122,7 @@ class DBAdmin:
         # decorator
 
         # Obtain the database credentials from configuration file.
-        config = DBConfig()
-        credentials = config('postgres')
+        credentials = DBCredentials()('postgres')
 
         # Establish a database connection and set the commit isolationlevel.
         con = psycopg2.connect(**credentials)
@@ -116,8 +151,7 @@ class DBAdmin:
         # decorator
 
         # Obtain the database credentials from configuration file.
-        config = DBConfig()
-        credentials = config(dbname)
+        credentials = DBCredentials()(dbname)
 
         # Establish a database connection and set the commit isolationlevel.
         con = psycopg2.connect(**credentials)
@@ -139,8 +173,7 @@ class DBAdmin:
                      sql_command: str) -> tuple:
 
         # Obtain the database credentials from configuration file.
-        config = DBConfig()
-        credentials = config(dbname)
+        credentials = DBCredentials()(dbname)
 
         # Establish a database connection and set the commit isolationlevel.
         con = psycopg2.connect(**credentials)
@@ -166,8 +199,7 @@ class DBAdmin:
             backup_filepath (str): the backup relative filepath.
 
         """
-        config = DBConfig()
-        credentials = config(dbname)
+        credentials = DBCredentials()(dbname)
 
         backup_filepath = backup_filepath.format(
             date=datetime.now().strftime("%Y%m%d"))
@@ -198,7 +230,7 @@ class DBAdmin:
     #         restore_filepath (str): the location of the restore file.
 
     #     """
-    #     config = DBConfig()
+    #     config = DBCredentials()
     #     credentials = config(dbname)
 
         # restore_cmd = "pg_dump -e -v -O -x -h {host} -d {database} \

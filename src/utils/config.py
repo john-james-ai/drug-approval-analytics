@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 15th 2021, 5:47:58 pm                             #
-# Modified : Wednesday, July 21st 2021, 1:52:32 pm                            #
+# Modified : Friday, July 23rd 2021, 1:42:18 pm                               #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -21,19 +21,17 @@
 
 import os
 from configparser import ConfigParser
-import logging
-logger = logging.getLogger(__name__)
+from .logger import logger
+import yaml
 
-# -----------------------------------------------------------------------------#
+# --------------------------------------------------------------------------- #
 
 
 class Config:
     """Access object to the configuration file."""
 
-    filepath = "config.cfg"
-
-    def __init__(self, filepath=None):
-        self._filepath = filepath if filepath is not None else Config.filepath
+    def __init__(self, filepath: str) -> None:
+        self._filepath = filepath
 
     def _check_file(self, filepath):
         if not os.path.exists(filepath):
@@ -121,12 +119,12 @@ class Config:
         return parser.sections()
 
 # --------------------------------------------------------------------------- #
-#                        DATABASE CONFIG READER                               #
+#                     DATABASE CREDENTIALS READER                             #
 # --------------------------------------------------------------------------- #
 
 
-class DBConfig:
-    """Access object to Config. This makes configurations read-only.
+class DBCredentials:
+    """Access object to for database credentials.
 
     Returns the database credentials for database having the dbname. Properties
     are exposed for credentials dictionary and for each variable
@@ -135,26 +133,18 @@ class DBConfig:
     a dictionary format.
 
     Arguments:
-        dbname str: The 'dbname' credential for the database
-        filepath str: Used for testing.
+        filepath str: The path to the credentials configuration file.
     """
 
-    filepath = 'database.cfg'
+    filepath = './config/database.cfg'
 
-    def __init__(self, dbname: str, filepath: str = None) -> None:
-        self._dbname = dbname
-        self._filepath = filepath
-        self._credentials = self._get_config()
+    def __init__(self, filepath: str = None) -> None:
+        self._filepath = filepath if filepath is not None else \
+            DBCredentials.filepath
+        self._credentials = {}
 
-    def _get_config(self):
-        if self._filepath is None:
-            self._filepath = DBConfig.filepath
-
-        dbnames = Config(self._filepath).get_config('database', 'names')
-        if self._dbname not in dbnames:
-            raise Exception("{} is not a valid dbname".format(self._dbname))
-
-        return Config(self._filepath).get_section(self._dbname)
+    def get_config(self, dbname: str) -> dict:
+        self._credentials = Config(self._filepath).get_section(dbname)
 
     @property
     def dbname(self):
@@ -181,25 +171,19 @@ class DBConfig:
         return self._credentials
 
 
-# --------------------------------------------------------------------------- #
-# Database configurations
-pipeline_config = DBConfig('repository')
-aact_config =  DBConfig('aact')
 # ----------------------------------------------------------------------------#
 #                            DATA SOURCES                                     #
 # ----------------------------------------------------------------------------#
-
-
-class DataSourcesConfig:
+class DataSourceConfig:
     """Access to data source configurations."""
 
-    filepath = 'config.cfg'
+    filepath = './config/datasources.cfg'
 
-    def __init__(self, filepath=None):
+    def __init__(self, filepath: str = None) -> None:
         self._filepath = filepath if filepath is not None \
-            else DataSourcesConfig.filepath
+            else DataSourceConfig.filepath
 
-    def __call__(self, name: str) -> dict:
+    def get_config(self, name: str) -> dict:
         sources = Config(self._filepath).get_config('data', 'sources')
         if name not in sources:
             raise Exception("{} is not a valid data source.".format(name))
@@ -207,7 +191,51 @@ class DataSourcesConfig:
         return Config(self._filepath).get_section(name)
 
     @property
-    def datasources(self):
+    def datasources(self) -> list:
         sources = Config().get_config('data', 'sources')
         sources = sources.split(',')
         return sources
+
+# ----------------------------------------------------------------------------#
+#                            JSON CONFIG PARSER                               #
+# ----------------------------------------------------------------------------#
+
+
+class RepositoryConfig:
+    """Defines the schema for the Repository database."""
+
+    filepath = './config/repository.yaml'
+
+    def __init__(self, filepath: str = None) -> None:
+        self._filepath = filepath if filepath is not None \
+            else RepositoryConfig.filepath
+
+    def get_config(self, name: str = None) -> dict:
+        config = {}
+        with open(self._filepath) as file:
+            data = yaml.load(file, Loader=yaml.FullLoader)
+
+        if name:
+            try:
+                config = data.get(name)
+            except Exception as e:
+                logger.error(e)
+        else:
+            config = data
+
+        return config
+
+    def set_config(self, config: dict) -> None:
+        with open(self._filepath, 'w') as file:
+            yaml.dump(config, file)
+
+
+# ----------------------------------------------------------------------------#
+#                           CONFIGURATIONS                                    #
+# ----------------------------------------------------------------------------#
+# Database credentials
+dba_credentials = DBCredentials().get_config('postgres')
+aact_credentials = DBCredentials().get_config('AACT')
+repository_credentials = DBCredentials().get_config('repository')
+# Database configurations
+repository_config = RepositoryConfig().get_config()

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 9:27:37 am                            #
-# Modified : Thursday, July 22nd 2021, 1:16:55 am                             #
+# Modified : Thursday, July 22nd 2021, 1:09:29 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -39,18 +39,13 @@ Dependencies:
 """
 from dataclasses import dataclass, field
 import logging
-import UUID
-from uuid import uuid4
+from uuid import uuid4, UUID
 from abc import ABC, abstractmethod
 from datetime import datetime
 
-from .repository import Repositories
-from .monitor import exception_handler
+from src.platform.repository import Repositories
+from ..utils.logger import exception_handler, logger
 # -----------------------------------------------------------------------------#
-logging.setLevel(logging.NOTSET)
-logger = logging.getLogger(__name__)
-
-# --------------------------------------------------------------------------- #
 
 
 @dataclass
@@ -157,6 +152,8 @@ class Step(ABC):
         self._description = description
         self._step_in = step_in
         self._step_out = step_out
+        self._step_in.step_id = self._id
+        self._step_out.step_id = self._id
         self._started = None
         self._stopped = None
         self._return = Return()
@@ -284,7 +281,7 @@ class Pipeline:
         self._name = name
         self._description = description
         self._stage = stage
-        self._steps = []
+        self._steps = {}
         self._return = Return()
         self._started = None
         self._stopped = None
@@ -307,7 +304,16 @@ class Pipeline:
 
     def add_step(self, step: Step) -> None:
         step.pipeline_id = self._id
-        self._steps.append(step)
+        self._steps[step.name] = step
+
+    def get_step(self, name: str) -> None:
+        try:
+            return self._steps.get(name)
+        except Exception as e:
+            logger.error(e)
+
+    def get_steps(self) -> dict:
+        return self._steps
 
     def _start(self) -> None:
         self._started = datetime.now()
@@ -350,7 +356,7 @@ class Pipeline:
         self._stage = stage
 
     @property
-    def steps(self) -> list:
+    def steps(self) -> dict:
         return self._steps
 
     @property
@@ -443,10 +449,10 @@ class PipelineManager:
         self._event = Event(pipeline)
 
     def execute(self) -> None:
-        self._pipeline.execute()
+        self._event.pipeline.execute()
 
     def save(self) -> None:
-        self._repositories.save(self._pipeline)
+        self._repositories.save(self._event)
 
     def get_event(self, name: str) -> Event:
         return self._repositories.events.get(name)

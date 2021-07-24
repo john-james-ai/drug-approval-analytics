@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 1:25:36 pm                            #
-# Modified : Thursday, July 22nd 2021, 1:18:08 am                             #
+# Modified : Thursday, July 22nd 2021, 11:39:23 pm                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -20,173 +20,47 @@
 # =========================================================================== #
 """Repository for pipeline events
 
-This module defines the repostory for pipeline events and consists of:
+This module defines the repository for pipeline events and consists of:
 
-    - Elements: Repository containing pipeline elements
-    - Steps: Repository containing pipeline steps
-    - Pipelines: Repository containing pipeline information
-    - Events: Repository and unit of work for pipeline events.
+    - RepoSetup: Configures the Repository database.
+    - RepoDBAdmin: Repository database administration
+    - RepoDBAccess: Repository database access object.
+    - Repository: Repository class interface used by the Pipeline
 
-Dependencies:
-    Element: Class defining pipeline inputs and outputs
-    Step: Class defining pipeline tasks
-    Pipeline: Class defining the pipeline engine
-    PipelineDatabaseAccessObject: Connection to this access object.
 
 """
 from abc import ABC, abstractmethod
+from uuid import UUID
+import pandas as pd
 
-from .pipeline import Element, Step, Pipeline, Event
-from .connection import PipelineDatabaseAccessObject
 # --------------------------------------------------------------------------- #
 
 
-class Repository(ABC):
-    """Base class for all repositories..
+class RepositorySetup():
+    """ Class the creates the Repository database.
+
+    The repository is a one-table database, the schema for which is defined
+    in the database configuration file.
 
     Arguments:
-        connection: PipelineDatabaseAccessObject.connection
+        configfilepath (str): Location of the Repository configuration file.
 
     """
 
-    table = None
+    configfile = '../data/metadata/repository.csv'
 
-    def __init__(self, connection):
-        self._connection = connection
+    def __init__(self) -> None:
+        self._configfile = RepoSetup.configfile
 
-    def open(self) -> None:
-        self._cursor = self._connection.cursor()
+    def execute(self) -> None:
+        """Creates the DataElements table."""
 
-    def close(self) -> None:
-        self._cursor.commit()
-        self._connection.close()
-
-    @abstractmethod
-    def add(self, *args, **kwargs) -> None:
-        pass
-
-    @abstractmethod
-    def get(self, *args, **kwargs) -> None:
-        pass
-
-    @abstractmethod
-    def get_all(self) -> None:
-        pass
-
-    @abstractmethod
-    def update(self, *args, **kwargs) -> None:
-        pass
-
-    @abstractmethod
-    def delete(self, *args, **kwargs) -> None:
-        pass
-
-    @abstractmethod
-    def delete_all(self) -> None:
-        pass
-# --------------------------------------------------------------------------- #
+        df = pd.read_csv(self._configfile)
+        config = df.to_dict('index')
+        return config
 
 
-class Elements(Repository):
-    """Repository for Pipeline Element objects.
-
-    Arguments:
-        connection: PipelineDatabaseAccessObject.connection
-
-    """
-
-    table = 'elements'
-
-    def __init__(self, connection):
-        super(Elements, self).__init__(connection)
-
-    def add(self, element: Element) -> None:
-        self._connection.add(Elements.table, element)
-
-    def get(self, name: str) -> Element:
-        return self._connection.get(Elements.table, name)
-
-    def get_all(self) -> list:
-        return self._connection.get_all('element')
-
-    def update(self, element: Element) -> None:
-        self._connection.update(Elements.table, element)
-
-    def delete(self, name: str) -> None:
-        self._connection.delete(Elements.table, name)
-
-    def delete_all(self) -> None:
-        self._connection.delete_all(Elements.table)
-# --------------------------------------------------------------------------- #
-
-
-class Steps(Repository):
-    """Repository for Pipeline Step objects.
-
-    Arguments:
-        connection: PipelineDatabaseAccessObject.connection
-
-    """
-
-    table = 'steps'
-
-    def __init__(self, connection):
-        super(Steps, self).__init__(connection)
-
-    def add(self, step: Step) -> None:
-        self._connection.add(Steps.table, step)
-
-    def get(self, name: str) -> Step:
-        return self._connection.get(Steps.table, name)
-
-    def get_all(self) -> list:
-        return self._connection.get_all(Steps.table)
-
-    def update(self, step: Step) -> None:
-        self._connection.update(Steps.table, step)
-
-    def delete(self, name: str) -> None:
-        self._connection.delete(Steps.table, name)
-
-    def delete_all(self) -> None:
-        self._connection.delete_all(Steps.table)
-
-
-# --------------------------------------------------------------------------- #
-class Pipelines(Repository):
-    """Repository for Pipeline Pipeline objects.
-
-    Arguments:
-        connection: PipelineDatabaseAccessObject.connection
-
-    """
-
-    table = 'pipelines'
-
-    def __init__(self, connection):
-        super(Pipelines, self).__init__(connection)
-
-    def add(self, pipeline: Pipeline) -> None:
-        self._connection.add(Pipelines.table, pipeline)
-
-    def get(self, name: str) -> Pipeline:
-        return self._connection.get(Pipelines.table, name)
-
-    def get_all(self) -> list:
-        return self._connection.get_all(Pipelines.table)
-
-    def update(self, pipeline: Pipeline) -> None:
-        self._connection.update(Pipelines.table, pipeline)
-
-    def delete(self, name: str) -> None:
-        self._connection.delete(Pipelines.table, name)
-
-    def delete_all(self) -> None:
-        self._connection.delete_all(Pipelines.table)
-# --------------------------------------------------------------------------- #
-
-
-class Events(Repository):
+class Repositories:
     """Repository for Pipeline Event objects.
 
     Arguments:
@@ -219,49 +93,93 @@ class Events(Repository):
 
 
 # --------------------------------------------------------------------------- #
-class Repositories:
-    """Encapsulates all repository classes.
 
-    Dependency:
-        database: PipelineDatabaseAccessObject
 
+class RepoDBAdmin:
+    """Database administration for the repository database."""
+
+    dbname = "repository"
+
+    def __init__(self, name: str, engine: DBCon) -> None:
+        self._name = RepoDBAdmin.dbname if name is None else name
+        self._engine = engine
+
+    @exception_handler
+    def create_database(self) -> str:
+        """Creates the repository database and returns the database name."""
+        return self._dba.create_database(self._name)
+
+    @exception_handler
+    def drop_database(self) -> str:
+        """Creates the repository database and returns the database name."""
+        self._dba.drop_database(self._name)
+
+    @exception_handler
+    def create_table(self, table: str, sql_query: str) -> None:
+        conn = self._engine.initialize(
+            repository_config).get_connection()
+        cursor = conn.cursor()
+        cursor.execute(sql_query)
+        cursor.close()
+        conn.commit()
+        conn.close()
+# --------------------------------------------------------------------------- #
+
+
+class RepoDBAccess(ABC):
+    """Base database access object for the pipeline repository Database."""
+
+    dbname = "repository"
+
+    def __init__(self, engine: DBCon, query_builder) -> None:
+        self._engine = engine
+        self._dbname = RepoDBAccess.dbname
+        self._query_builder = query_builder
+        self._connection = None
+
+    @exception_handler
+    def get_connection(self) -> None:
+        """Establishes a connection to the database."""
+
+        # Connections will be managed by the client to enforce transaction
+        # over the Pipeline event transaction.
+        self._engine.initialize(repository_config)
+        self._connection = self._engine.get_connection()
+        self._cursor = self._connection.cursor()
+
+    def list_events(self, stage: str = None) -> pd.DataFrame:
+        if stage:
+
+    def get_pipeline(self, name: str) -> Pipeline:
+        self._q
+
+    def get_event(self, name: str) -> dict:
+        """Returns all components associated with the named pipeline event.
+
+        An event is a hierarchy of objects, including the associated
+        pipeline, the pipeline steps,  and the input and output
+        elements of each pipeline step. Hence, this method returns
+        a dictionary containing each component with names as keys.
+
+        Arguments
+            name (str): The unique name of the event.
+        """
+        return pd.read_sql_query(sql=sql_query, con=self._connection)
+
+    def delete(self, table: str, sql_query: str,
+               parameters: tuple = ()) -> None:
+        self._cursor.execute(sql_query, parameters)
+# --------------------------------------------------------------------------- #
+
+
+class Event:
+    """Element repository database.
+
+    Arguments:
+        dao (RepoDBAcess): Database access object
     """
 
-    def __init__(self):
-        self._database = PipelineDatabaseAccessObject()
-        self._connection = self._database.get_connection()
-        self._elements = Elements(self._connection)
-        self._steps = Steps(self._connection)
-        self._pipelines = Pipelines(self._connection)
-        self._events = Events(self._connection)
+    def __init__(sel, dao: RepoDBAccess, query_builder: QueryBuilder) -> None:
+        self._dao = dao
 
-    def open(self) -> None:
-        self._elements.open()
-        self._steps.open()
-        self._pipelines.open()
-        self._events.open()
-
-    def close(self) -> None:
-        self._elements.close()
-        self._steps.close()
-        self._pipelines.close()
-        self._events.close()
-
-    def save(self, event: Event) -> None:
-        self._open()
-
-    @property
-    def elements(self):
-        return self._elements
-
-    @property
-    def steps(self):
-        return self._steps
-
-    @property
-    def pipelines(self):
-        return self._pipelines
-
-    @property
-    def events(self):
-        return self._events
+    def get(self, event_name: str) -> Element:

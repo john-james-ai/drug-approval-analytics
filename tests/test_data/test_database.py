@@ -1,31 +1,30 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
-#==============================================================================#
-# Project  : Predict-FDA                                                       #
-# Version  : 0.1.0                                                             #
-# File     : \test_database.py                                                 #
-# Language : Python 3.9.5                                                      #
-# -----------------------------------------------------------------------------#
-# Author   : John James                                                        #
-# Company  : nov8.ai                                                           #
-# Email    : john.james@nov8.ai                                                #
-# URL      : https://github.com/john-james-sf/predict-fda                      #
-# -----------------------------------------------------------------------------#
-# Created  : Sunday, July 4th 2021, 6:46:35 pm                                 #
-# Modified : Sunday, July 18th 2021, 7:43:12 pm                                #
-# Modifier : John James (john.james@nov8.ai)                                   #
-# -----------------------------------------------------------------------------#
-# License  : BSD 3-clause "New" or "Revised" License                           #
-# Copyright: (c) 2021 nov8.ai                                                  #
-#==============================================================================#
-#%%
+# =========================================================================== #
+# Project  : Drug Approval Analytics                                          #
+# Version  : 0.1.0                                                            #
+# File     : \tests\test_data\test_database.py                                #
+# Language : Python 3.9.5                                                     #
+# --------------------------------------------------------------------------  #
+# Author   : John James                                                       #
+# Company  : nov8.ai                                                          #
+# Email    : john.james@nov8.ai                                               #
+# URL      : https://github.com/john-james-sf/drug-approval-analytics         #
+# --------------------------------------------------------------------------  #
+# Created  : Sunday, July 4th 2021, 6:46:35 pm                                #
+# Modified : Thursday, July 22nd 2021, 1:01:27 pm                             #
+# Modifier : John James (john.james@nov8.ai)                                  #
+# --------------------------------------------------------------------------- #
+# License  : BSD 3-clause "New" or "Revised" License                          #
+# Copyright: (c) 2021 nov8.ai                                                 #
+# =========================================================================== #
+# %%
 import pytest
-import logging
 import pandas as pd
-from src.data.database import DBAdmin, DBDao
+from src.platform.repository import RepoSetup
+from src.data.database.admin import DBAdmin
+from src.data.database.access import DBDao
 # -----------------------------------------------------------------------------#
-logging.basicConfig(level=logging.NOTSET)
-logger = logging.getLogger(__name__)
 
 
 @pytest.mark.dbadmin
@@ -33,30 +32,30 @@ class DBAdminTests:
 
     def __init__(self):
         dbadmin = DBAdmin()
-        dbadmin.drop_database('metadata')        
+        dbadmin.drop_database('metadata')
 
     def test_database_exists(self):
         dbadmin = DBAdmin()
         version = dbadmin.database_exists('AACT')
-        assert version is not None, "Error: Database version not returned"        
-    
+        assert version is not None, "Error: Database version not returned"
+
     def test_create_db(self):
         dbadmin = DBAdmin()
-        dbadmin.create_database('metadata')        
+        dbadmin.create_database('metadata')
         version = dbadmin.database_exists('metadata')
         assert version is not None, "Error: Database not created."
 
-    #TODO
+    # TODO
     def test_drop_db(self):
-        pass    
+        pass
 
-    #TODO
+    # TODO
     def test_backup_db(self):
-        pass       
+        pass
 
-    #TODO
+    # TODO
     def test_restore_db(self):
-        pass            
+        pass
 
     def test_create_table(self):
         # Create table
@@ -64,7 +63,7 @@ class DBAdminTests:
         sql_command = (
             """
             CREATE TABLE attributes (
-                id SERIAL PRIMARY KEY,                
+                id SERIAL PRIMARY KEY,
                 attribute VARCHAR(120) NOT NULL,
                 entity VARCHAR(48) NOT NULL,
                 datatype VARCHAR(48) NOT NULL
@@ -78,25 +77,29 @@ class DBAdminTests:
         assert 'attributes' in dao.get_tables(), "Error: Table not in schema."
 
 
-
 class DBDaoTests:
 
-    def __init__(self, filepath):        
+    def __init__(self, filepath):
         self._data = pd.read_csv(filepath)
         self._dao = DBDao('metadata')
 
-    def test_load(self):        
-        self._dao.load(table='attributes', df = self._data)
+    def test_load(self):
+        self._dao.load(table='attributes', df=self._data)
 
     def test_read_table(self):
         df = self._dao.read_table('attributes')
-        assert df.shape[0] > 100, "Error: Expected shape[0] > 100, Actual = {}.".format(df.shape[0])
-        assert df.shape[1] == 4, "Error: Expected shape[1] = 4, Actual = {}.".format(df.shape[1])
+        assert df.shape[0] > 100, "Error: Expected shape[0] > 100, Actual = {}.".format(
+            df.shape[0])
+        assert df.shape[1] == 4, "Error: Expected shape[1] = 4, Actual = {}.".format(
+            df.shape[1])
 
     def test_update(self):
-        self._dao.update('attributes', 'datatype', 'Date', 'attribute', 'phase')
-        df = self._dao.read_table('attributes', 'attribute', 'phase').reset_index()        
-        assert df[df["attribute"] == "phase"]['datatype'].any() == 'Date', "Error: Update didn't work."
+        self._dao.update('attributes', 'datatype',
+                         'Date', 'attribute', 'phase')
+        df = self._dao.read_table(
+            'attributes', 'attribute', 'phase').reset_index()
+        assert df[df["attribute"] == "phase"]['datatype'].any(
+        ) == 'Date', "Error: Update didn't work."
 
     def test_read(self):
         df = self._dao.read('attributes', 'attribute', 'phase')
@@ -120,23 +123,35 @@ class DBDaoTests:
         del(self._dao)
 
 
-def main():
-    dbadmin = DBAdminTests()
-    dbadmin.test_database_exists()
-    dbadmin.test_create_db()    
-    dbadmin.test_create_table()
+class RepoDBTests:
 
-    filepath = "./data/metadata/aact_metadata.csv"
-    dbao = DBDaoTests(filepath)
-    dbao.test_load()
-    dbao.test_read_table()
-    dbao.test_update()
-    dbao.test_read()
-    dbao.test_delete()
-    dbao.test_columns()
-    logger.info("DataBase Tests Complete")
+    @pytest.mark.repo
+    def test_repo_setup(self):
+        setup = RepoSetup()
+        config = setup.execute()
+        print(config)
+
+
+def main():
+    # dbadmin = DBAdminTests()
+    # dbadmin.test_database_exists()
+    # dbadmin.test_create_db()
+    # dbadmin.test_create_table()
+
+    # filepath = "./data/metadata/aact_metadata.csv"
+    # dbao = DBDaoTests(filepath)
+    # dbao.test_load()
+    # dbao.test_read_table()
+    # dbao.test_update()
+    # dbao.test_read()
+    # dbao.test_delete()
+    # dbao.test_columns()
+    # logger.info("DataBase Tests Complete")
+
+    rt = RepoDBTests()
+    rt.test_repo_setup()
 
 
 if __name__ == "__main__":
-    main()   
-#%%
+    main()
+# %%

@@ -8,6 +8,7 @@ __pycache__/
 # Config
 *.ini
 *.cfg
+config/
 
 # Internal information
 notes/
