@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:23:26 pm                               #
-# Modified : Friday, July 23rd 2021, 9:43:20 pm                               #
+# Modified : Saturday, July 24th 2021, 12:02:03 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -22,12 +22,13 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
+import gzip
 import pandas as pd
 import psycopg2
 from psycopg2 import pool, sql
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from subprocess import Popen, PIPE
-# import shlex
+from sh import pg_dump
 
 from ...utils.logger import exception_handler, logger
 from querybuilder import CreateDatabase, CreateTable
@@ -188,6 +189,15 @@ class Admin(ABC):
     def drop(self, name: str) -> None:
         pass
 
+    @abstractmethod
+    def backup(self, name: str, filepath: str) -> None:
+        pass
+
+    @abstractmethod
+    def recover(self, name: str, filepath: str) -> None:
+        pass
+
+
 # --------------------------------------------------------------------------- #
 #                         DATABASE ADMINISTRATION                             #
 # --------------------------------------------------------------------------- #
@@ -210,6 +220,53 @@ class DBA(Admin):
         query = DropDatabase()
         commands = query.build(name, self._credentials)
         self._engine.execute(name, commands)
+
+    @exception_handler
+    def backup(self, name: str, filepath: str) -> None:
+
+        command = Popen(
+            ['pg_dump',
+             '--dbname=postgresql://{}:{}@{}:{}/{}'
+                .format(self._credentials['user'],
+                        self._credentials['password'],
+                        self._credentials['host'],
+                        self._credentials['port'],
+                        self._credentials['dbname']),
+                '-Fc -f', filepath, '-v'],
+            stdout=PIPE)
+
+        result = command.communicate()[0]
+
+        if int(command.returncode) != 0:
+            raise Exception(command.returncode)
+
+        # TODO: Write to repository.
+
+        return result
+
+    @exception_handler
+    def restore(self, name: str, filepath: str) -> None:
+
+        command = Popen(
+            ['pg_restore',
+             '--no-owner',
+             '--dbname=postgresql://{}:{}@{}:{}/{}'
+                .format(self._credentials['user'],
+                        self._credentials['password'],
+                        self._credentials['host'],
+                        self._credentials['port'],
+                        self._credentials['dbname']),
+                '-v', filepath],
+            stdout=PIPE)
+
+        result = command.communicate()[0]
+
+        if int(command.returncode) != 0:
+            raise Exception(command.returncode)
+
+        # TODO: Write to repository.
+
+        return result
 
 # --------------------------------------------------------------------------- #
 #                         TABLE ADMINISTRATION                                #

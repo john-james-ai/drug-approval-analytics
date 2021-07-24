@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Friday, July 23rd 2021, 10:11:46 pm                              #
+# Modified : Saturday, July 24th 2021, 1:35:02 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -191,14 +191,16 @@ class ColumnInserter(QueryBuilder):
 
     def build(self, name: str, schema: str, columns, dict) -> SQLCommand:
 
-        command = \
-            sql.SQL("ALTER TABLE {schema}.{table} {cols}; ").format(
+        command = SQLCommand(
+            name='add_column',
+            description="Adding column(s) to {name}".format(name=name),
+            cmd=sql.SQL("ALTER TABLE {schema}.{table} {cols}; ").format(
                 schema=schema,
                 table=sql.Identifier(name),
                 cols=sql.SQL(", ").join(
                     sql.Identifier(
                         sql.SQL("ADD {c}").format(c=c)
-                        for c in columns.values())))
+                        for c in columns.values()))))
 
         return command
 
@@ -210,13 +212,16 @@ class ColumnRemover(QueryBuilder):
     def build(self, name: str, schema: str, columns, dict) -> SQLCommand:
 
         command = \
-            sql.SQL("ALTER TABLE {schema}.{table} {cols}; ").format(
-                schema=schema,
-                table=sql.Identifier(name),
-                cols=sql.SQL(", ").join(
-                    sql.Identifier(
-                        sql.SQL("DROP COLUMN {c}").format(c=c)
-                        for c in columns.keys())))
+            SQLCommand(
+                name="column_remove",
+                description="Column Remover",
+                cmd=sql.SQL("ALTER TABLE {schema}.{table} {cols}; ").format(
+                    schema=schema,
+                    table=sql.Identifier(name),
+                    cols=sql.SQL(", ").join(
+                        sql.Identifier(
+                            sql.SQL("DROP COLUMN {c}").format(c=c)
+                            for c in columns.keys()))))
 
         return command
 
@@ -227,9 +232,59 @@ class DropTable(QueryBuilder):
     def build(self, name: str) -> SQLCommand:
 
         command = SQLCommand(
-            name="drop database",
+            name="drop_table",
             description="Drop {} table if it exists.".format(name),
             cmd=sql.SQL("DROP TABLE IF EXISTS {} ;").format(
                 sql.Identifier(name)))
+
+        return command
+
+
+# -----------------------------------------------------------------------------#
+class SimpleQuery(QueryBuilder):
+
+    def build(self, name: str, tablename: str, columns: list,
+              keys: list, comparators: list, operators: list,
+              values: list) -> SQLCommand:
+
+        # Validate to ensure keys, operators, and values are same length
+        length = len(keys)
+        if any(len(element) != length for element in
+               [keys, comparators, operators, values]):
+            raise ValueError(
+                "key, operator, and values must be equal length lists.")
+
+        # Add an empty character to end of operators so that we don't
+        # have to deal with the 1- problem
+        operators += ""
+
+        # Create a list of where clauses
+        conditions = {}
+        for key, comparator, operator in \
+                zip(keys, comparators, operators):
+            condition = sql.SQL("{key} {compare} {value} {oper}").format(
+                key=sql.Identifier(key),
+                compare=sql.Identifier(comparator),
+                value=sql.Placeholder(),
+                oper=sql.Identifier(operator))
+            conditions.append(condition)
+
+        # Merge the list of conditions into a single string.
+        where_clause = sql.SQL("WHERE {clause}").format(
+            clause=sql.SQL(" ").join(map(sql.Identifer, conditions))
+        )
+
+        # Not sure if this will work.
+        query = sql.SQL("SELECT {fields} FROM {table} {where}".format(
+            fields=sql.SQL(",").join(map(sql.Identifier(columns))),
+            table=sql.Identifier(tablename),
+            where=sql.Identifier(where_clause)))
+
+        # Let's pack it up and see what we have.
+        command = SQLCommand(
+            NAME='simple_query',
+            description='Simple Query on {} table'.format(tablename),
+            cmd=query,
+            params=tuple(values))
 
         return command
