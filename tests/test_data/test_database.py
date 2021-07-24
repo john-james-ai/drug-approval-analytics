@@ -12,144 +12,178 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, July 4th 2021, 6:46:35 pm                                #
-# Modified : Thursday, July 22nd 2021, 1:01:27 pm                             #
+# Modified : Saturday, July 24th 2021, 5:13:56 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
 # %%
+import os
+import time
 import pytest
 import pandas as pd
-from src.platform.repository import RepoSetup
-from src.data.database.admin import DBAdmin
-from src.data.database.access import DBDao
+from src.platform.database import DBA, TableAdmin
+from src.utils.config import dba_credentials
+print(dba_credentials)
 # -----------------------------------------------------------------------------#
 
 
 @pytest.mark.dbadmin
-class DBAdminTests:
+class DBATests1:
 
     def __init__(self):
-        dbadmin = DBAdmin()
-        dbadmin.drop_database('metadata')
+        dbadmin = DBA(dba_credentials)
+        dbadmin.drop('test')
 
     def test_database_exists(self):
-        dbadmin = DBAdmin()
-        version = dbadmin.database_exists('AACT')
-        assert version is not None, "Error: Database version not returned"
+        dbadmin = DBA(dba_credentials)
+        result = dbadmin.exists('test')
+        assert result is False, "Database Exists Error: Existence \
+            evaluated as True."
+        print('\n#', 80*"-", '#')
+        print(" "*27, "Database Existence Testing Complete!")
+        print('#', 80*"-", '#')
 
-    def test_create_db(self):
-        dbadmin = DBAdmin()
-        dbadmin.create_database('metadata')
-        version = dbadmin.database_exists('metadata')
-        assert version is not None, "Error: Database not created."
+    def test_create_database(self):
+        dbadmin = DBA(dba_credentials)
+        dbadmin.create('test')
+        result = dbadmin.exists('test')
+        assert result is True, "Database Exists Error: Existence \
+            evaluated as False."
+        print('\n#', 80*"-", '#')
+        print(" "*27, "Database Creation Testing Complete!")
+        print('#', 80*"-", '#')
 
-    # TODO
-    def test_drop_db(self):
-        pass
+    def test_drop_database(self):
+        dbadmin = DBA(dba_credentials)
+        dbadmin.drop('test')
+        result = dbadmin.exists('test')
+        assert result is False, "Database Drop Error: Existence \
+            evaluated as returned True."
+        print('\n#', 80*"-", '#')
+        print(" "*27, "Database Drop Testing Complete!")
+        print('#', 80*"-", '#')
 
-    # TODO
-    def test_backup_db(self):
-        pass
 
-    # TODO
-    def test_restore_db(self):
-        pass
+class TableTests:
+
+    def __init__(self):
+        dba = TableAdmin(dba_credentials)
+        name = 'test_table'
+        schema = 'test_schema'
+        dba.drop(name, schema)
+
+    def _build_schema(self):
+        filepath = "./data/metadata/repository.csv"
+        df = pd.read_csv(filepath, usecols=['column', 'command'])
+        config = df.to_dict()
+        columns = {}
+        for col, command in config.items():
+            columns[col] = command
+        return columns
+        print('\n#', 80*"-", '#')
+        print(" "*27, "Database Schema Built!")
+        print('#', 80*"-", '#')
 
     def test_create_table(self):
-        # Create table
-        dbadmin = DBAdmin()
-        sql_command = (
-            """
-            CREATE TABLE attributes (
-                id SERIAL PRIMARY KEY,
-                attribute VARCHAR(120) NOT NULL,
-                entity VARCHAR(48) NOT NULL,
-                datatype VARCHAR(48) NOT NULL
-            )
-            """
-        )
-        dbadmin.create_table('metadata', 'attributes', sql_command)
+        columns = self._build_schema()
+        name = 'test_table'
+        schema = 'test_schema'
+        dba = TableAdmin(dba_credentials)
+        dba.create(name=name, schema=schema, columns=columns)
+        response = dba.exists(name, schema)
+        assert response is True, "Create Table Error: Table does not exist."
+        print('\n#', 80*"-", '#')
+        print(" "*27, "Table Creation Testing Complete!")
+        print('#', 80*"-", '#')
 
-        # Get list of tables from Dao
-        dao = DBDao('metadata')
-        assert 'attributes' in dao.get_tables(), "Error: Table not in schema."
+    def test_drop_table(self):
+        name = 'test_table'
+        schema = 'test_schema'
+        dba = TableAdmin(dba_credentials)
+        dba.drop(name=name, schema=schema)
+        response = dba.exists(name, schema)
+        assert response is False, "Drop Table Error: Table wasn't dropped."
+        print('\n#', 80*"-", '#')
+        print(" "*27, "Table Drop Testing Complete!")
+        print('#', 80*"-", '#')
 
-
-class DBDaoTests:
-
-    def __init__(self, filepath):
-        self._data = pd.read_csv(filepath)
-        self._dao = DBDao('metadata')
-
-    def test_load(self):
-        self._dao.load(table='attributes', df=self._data)
-
-    def test_read_table(self):
-        df = self._dao.read_table('attributes')
-        assert df.shape[0] > 100, "Error: Expected shape[0] > 100, Actual = {}.".format(
-            df.shape[0])
-        assert df.shape[1] == 4, "Error: Expected shape[1] = 4, Actual = {}.".format(
-            df.shape[1])
+    def test_insert(self):
+        pass
+        # TODO
 
     def test_update(self):
-        self._dao.update('attributes', 'datatype',
-                         'Date', 'attribute', 'phase')
-        df = self._dao.read_table(
-            'attributes', 'attribute', 'phase').reset_index()
-        assert df[df["attribute"] == "phase"]['datatype'].any(
-        ) == 'Date', "Error: Update didn't work."
+        pass
+        # TODO
 
-    def test_read(self):
-        df = self._dao.read('attributes', 'attribute', 'phase')
-        assert df['datatype'].any() == 'Date', "Error, read didn't work."
+    def test_query(self):
+        pass
+        # TODO
 
     def test_delete(self):
-        self._dao.delete('attributes', 'attribute', 'phase')
-        df = self._dao.read('attributes', 'attribute', 'phase')
-        assert df.shape[0] == 0, "Error, delete didn't work."
-
-    def test_columns(self):
-        columns = self._dao.get_columns('attributes', metadata=False)
-        assert len(columns) == 4, "Error, Number of columns is incorrect"
-        assert 'datatype' in columns, "Error, Columns didn't work"
-
-        columns = self._dao.get_columns('attributes', metadata=True)
-        assert len(columns) > 4, "Error, Number of columns is incorrect"
-        assert 'scope_schema' in columns, "Error, Columns didn't work"
-
-    def test_teardown(self):
-        del(self._dao)
+        pass
+        # TODO
 
 
-class RepoDBTests:
+class DBATests2:
 
-    @pytest.mark.repo
-    def test_repo_setup(self):
-        setup = RepoSetup()
-        config = setup.execute()
-        print(config)
+    def test_backup_database(self):
+        # Confirm the database exists.
+        dba = DBA(dba_credentials)
+        response = dba.exists('test')
+        assert response is True, "Error Test Backup. Database doesn't exist."
+        # Perform backup
+        filepath = "../data/backup.dmp"
+        dba = DBA(dba_credentials)
+        dba.backup(name='test', filepath=filepath)
+        time.sleep(10)  # Give it 10 seconds
+        assert os.path.exists(
+            filepath), "Database Backup Error. File does not exist."
+        print('\n#', 80*"-", '#')
+        print(" "*27, "Database Backup Testing Complete!")
+        print('#', 80*"-", '#')
+
+    def test_restore_database(self):
+        # Drop the database
+        dba = DBA(dba_credentials)
+        dba.drop('test')
+        response = dba.exists('test')
+        assert response is True, "Error Test Restore. Didn't Drop"
+        # Perform restore
+        filepath = "../data/backup.dmp"
+        dba = DBA(dba_credentials)
+        dba.restore(name='test', filepath=filepath)
+        time.sleep(10)  # Give it 10 seconds
+        # Confirm it exists.
+        response = dba.exists('test')
+        assert response is True, "Error Test Restore. Didn't work."
+        print('\n#', 80*"-", '#')
+        print(" "*27, "Database Restore Testing Complete!")
+        print('#', 80*"-", '#')
 
 
 def main():
-    # dbadmin = DBAdminTests()
-    # dbadmin.test_database_exists()
-    # dbadmin.test_create_db()
-    # dbadmin.test_create_table()
+    dba = DBATests1()
+    dba.test_database_exists()
+    dba.test_create_database()
+    dba.test_drop_database()
 
-    # filepath = "./data/metadata/aact_metadata.csv"
-    # dbao = DBDaoTests(filepath)
-    # dbao.test_load()
-    # dbao.test_read_table()
-    # dbao.test_update()
-    # dbao.test_read()
-    # dbao.test_delete()
-    # dbao.test_columns()
-    # logger.info("DataBase Tests Complete")
+    dba = TableTests()
+    dba.test_create_table()
+    # dba.test_drop_table()
+    # # dba.test_insert()
+    # # dba.test_update()
+    # # dba.test_query()
+    # # dba.test_delete()
 
-    rt = RepoDBTests()
-    rt.test_repo_setup()
+    # dba = DBATests2()
+    # dba.test_backup_database()
+    # dba.test_restore_database()
+
+    print('\n\n#', 80*"=", '#')
+    print(" "*27, "Database Testing Complete!")
+    print('#', 80*"=", '#')
 
 
 if __name__ == "__main__":

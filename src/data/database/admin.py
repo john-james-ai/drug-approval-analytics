@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 1:39:19 pm                               #
-# Modified : Thursday, July 22nd 2021, 7:14:08 am                             #
+# Modified : Saturday, July 24th 2021, 3:56:38 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -36,7 +36,7 @@ from ...utils.config import DBConfig
 
 class DBAdmin:
 
-    @exception_handler
+    @exception_handler()
     def create_database(self, dbname: str) -> str:
         """Creates a new database. If it already exists, its deleted.
 
@@ -74,7 +74,7 @@ class DBAdmin:
 
         return dbname
 
-    @exception_handler
+    @exception_handler()
     def drop_database(self, dbname: str) -> None:
         """Drops database if it exists.
 
@@ -104,7 +104,7 @@ class DBAdmin:
 
         logger.info("Database {} dropped successfully.".format(dbname))
 
-    @exception_handler
+    @exception_handler()
     def database_exists(self, dbname: str) -> None:
         """Prints database version if it exists.
 
@@ -134,7 +134,7 @@ class DBAdmin:
 
         return version
 
-    @exception_handler
+    @exception_handler()
     def create_table(self, dbname: str, tablename: str,
                      sql_command: str) -> tuple:
 
@@ -157,7 +157,7 @@ class DBAdmin:
 
         logger.info("Table {} created.".format(tablename))
 
-    @exception_handler
+    @exception_handler()
     def backup(self, dbname: str, backup_filepath: str) -> tuple:
         """Drops database if it exists.
 
@@ -189,7 +189,7 @@ class DBAdmin:
             exit(1)
         return output
 
-    # @exception_handler
+    # @exception_handler()
     # def restore(self, dbname: str, restore_filepath: str) -> tuple:
     #     """Restore postgres from file
 
@@ -220,7 +220,7 @@ class DBAdmin:
 
     #     return output
 
-    @exception_handler
+    @exception_handler()
     def promote_database(active_db_credentials: str,
                          temp_db_credentials: str) -> None:
         """Promotes a temporary database to active.

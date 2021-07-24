@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 15th 2021, 5:47:58 pm                             #
-# Modified : Friday, July 23rd 2021, 1:42:18 pm                               #
+# Modified : Saturday, July 24th 2021, 4:15:42 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -145,6 +145,7 @@ class DBCredentials:
 
     def get_config(self, dbname: str) -> dict:
         self._credentials = Config(self._filepath).get_section(dbname)
+        return self._credentials
 
     @property
     def dbname(self):
@@ -236,6 +237,6 @@ class RepositoryConfig:
 # Database credentials
 dba_credentials = DBCredentials().get_config('postgres')
 aact_credentials = DBCredentials().get_config('AACT')
-repository_credentials = DBCredentials().get_config('repository')
+daa_credentials = DBCredentials().get_config('daa')
 # Database configurations
 repository_config = RepositoryConfig().get_config()

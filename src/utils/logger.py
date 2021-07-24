@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 9:32:12 pm                            #
-# Modified : Thursday, July 22nd 2021, 12:42:59 pm                            #
+# Modified : Saturday, July 24th 2021, 4:07:52 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -28,7 +28,6 @@ local variable of every frame.
 
 import logging
 import functools
-import types
 import inspect
 import sys
 # --------------------------------------------------------------------------- #
@@ -57,8 +56,8 @@ logger.addHandler(console_handler)
 
 def log_to_str(v):
     """ Converts newlines to  newline literals."""
-    if isinstance(v, types.StringType):
-        return ["'", v.replace('\n', '\\n'), "'"].join('')
+    if isinstance(v, str):
+        return ("").join(["'", v.replace('\n', '\\n'), "'"])
     else:
         return str(v).replace('\n', '\\n')
 

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 1:25:36 pm                            #
-# Modified : Thursday, July 22nd 2021, 11:39:23 pm                            #
+# Modified : Saturday, July 24th 2021, 3:56:37 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -104,17 +104,17 @@ class RepoDBAdmin:
         self._name = RepoDBAdmin.dbname if name is None else name
         self._engine = engine
 
-    @exception_handler
+    @exception_handler()
     def create_database(self) -> str:
         """Creates the repository database and returns the database name."""
         return self._dba.create_database(self._name)
 
-    @exception_handler
+    @exception_handler()
     def drop_database(self) -> str:
         """Creates the repository database and returns the database name."""
         self._dba.drop_database(self._name)
 
-    @exception_handler
+    @exception_handler()
     def create_table(self, table: str, sql_query: str) -> None:
         conn = self._engine.initialize(
             repository_config).get_connection()
@@ -137,7 +137,7 @@ class RepoDBAccess(ABC):
         self._query_builder = query_builder
         self._connection = None
 
-    @exception_handler
+    @exception_handler()
     def get_connection(self) -> None:
         """Establishes a connection to the database."""
 

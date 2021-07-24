@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Saturday, July 24th 2021, 2:10:26 am                             #
+# Modified : Saturday, July 24th 2021, 5:21:42 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -21,7 +21,8 @@
 """Query Template Generator."""
 from abc import ABC, abstractmethod
 from psycopg2 import sql
-from .database import SQLCommand
+from dataclasses import dataclass, field
+from datetime import datetime
 # -----------------------------------------------------------------------------#
 
 
@@ -31,6 +32,19 @@ class QueryBuilder(ABC):
     @abstractmethod
     def build(self, name: str, *args, **kwargs):
         pass
+# --------------------------------------------------------------------------- #
+#                              SQL COMMAND                                    #
+# --------------------------------------------------------------------------- #
+
+
+@dataclass
+class SQLCommand:
+    """Class that encapsulates a sql command, its name and parameters."""
+    name: str
+    cmd: sql
+    description: field(default=None)
+    params: tuple = field(default_factory=tuple)
+    executed: datetime = field(default=datetime(1970, 1, 1, 0, 0))
 
 # --------------------------------------------------------------------------- #
 #                          DATABASE ADMIN                                     #
@@ -46,7 +60,7 @@ class CreateDatabase(QueryBuilder):
                 name="create",
                 description="Create {} database".format(name),
                 cmd=sql.SQL("CREATE DATABASE {} ;").format(
-                    sql.Identifier(self._name)))
+                    sql.Identifier(name)))
 
         return command
 
@@ -61,10 +75,9 @@ class GrantPrivileges(QueryBuilder):
                 name="grant",
                 description="Grant privileges on database {} to {}"
                 .format(name, self._credentials['user']),
-                cmd=sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO {} ;")
+                cmd=sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO PUBLIC ;")
                 .format(
-                    sql.Identifier(name),
-                    sql.Identifier(credentials['user'])))
+                    sql.Identifier(name)))
 
         return command
 
@@ -108,24 +121,25 @@ class DatabaseExists(QueryBuilder):
 # --------------------------------------------------------------------------- #
 class CreateTable(QueryBuilder):
 
-    def build(self, name: str, schema: dict) -> SQLCommand:
+    def build(self, name: str, schema: dict, columns: dict) -> SQLCommand:
 
         # Create columns list and combine it into a single string
-        columns = []
-        for name, constraint in schema.items():
+        cols = []
+        for name, constraint in columns.items():
             column = sql.SQL("{name} {constraint}").format(
                 name=sql.Identifier(name),
                 constraint=sql.Identifier(constraint))
-            columns.append(column)
-        expression = sql.SQL(",").join(columns)
+            cols.append(column)
+        expression = sql.SQL(", ").join(cols)
 
-        query = sql.SQL("CREATE TABLE {table} ({columns});").format(
-            table=sql.Identifier(name, schema),
+        query = sql.SQL("CREATE TABLE {schema}.{table} ({columns});").format(
+            schema=sql.Identifier(schema),
+            table=sql.Identifier(name),
             columns=sql.Identifier(expression))
 
         command = SQLCommand(
             name="create_table",
-            description="Create {} table".format(name),
+            description="Create {}.{} table".format(schema, name),
             cmd=query)
 
         return command
@@ -198,12 +212,13 @@ class ColumnRemover(QueryBuilder):
 # -----------------------------------------------------------------------------#
 class DropTable(QueryBuilder):
 
-    def build(self, name: str) -> SQLCommand:
+    def build(self, name: str, schema: str) -> SQLCommand:
 
         command = SQLCommand(
             name="drop_table",
             description="Drop {} table if it exists.".format(name),
-            cmd=sql.SQL("DROP TABLE IF EXISTS {} ;").format(
+            cmd=sql.SQL("DROP TABLE IF EXISTS {}.{} ;").format(
+                sql.Identifier(schema),
                 sql.Identifier(name)))
 
         return command
@@ -212,7 +227,7 @@ class DropTable(QueryBuilder):
 # -----------------------------------------------------------------------------#
 class SimpleQuery(QueryBuilder):
 
-    def build(self, name: str, tablename: str, columns: list,
+    def build(self, name: str, tablename: str, schema: str, columns: list,
               keys: list, comparators: list, operators: list,
               values: list) -> SQLCommand:
 
@@ -244,8 +259,9 @@ class SimpleQuery(QueryBuilder):
         )
 
         # Not sure if this will work.
-        query = sql.SQL("SELECT {fields} FROM {table} {where}".format(
+        query = sql.SQL("SELECT {fields} FROM {schema}.{table} {where}".format(
             fields=sql.SQL(",").join(map(sql.Identifier(columns))),
+            schema=sql.Identifier(schema),
             table=sql.Identifier(tablename),
             where=sql.Identifier(where_clause)))
 

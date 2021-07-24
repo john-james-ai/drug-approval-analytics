@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:23:26 pm                               #
-# Modified : Saturday, July 24th 2021, 1:56:27 am                             #
+# Modified : Saturday, July 24th 2021, 5:18:17 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -20,34 +20,21 @@
 # =========================================================================== #
 """Postgres database administration, access and connection pools. """
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
 from datetime import datetime
 import pandas as pd
 import numpy as np
-import psycopg2
-from psycopg2 import pool, sql
+from psycopg2 import pool
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from subprocess import Popen, PIPE
 from typing import Union
 
-from ...utils.logger import exception_handler, logger
-from querybuilder import CreateDatabase, CreateTable, TableExists
-from querybuilder import DropDatabase, DropTable, ColumnInserter, ColumnRemover
+from ..utils.logger import exception_handler, logger
+from .querybuilder import CreateDatabase, DatabaseExists
+from .querybuilder import DropDatabase, GrantPrivileges
+from .querybuilder import CreateTable, DropTable
+from .querybuilder import ColumnInserter, ColumnRemover
+from .querybuilder import TableExists
 
-
-# --------------------------------------------------------------------------- #
-#                              SQL COMMAND                                    #
-# --------------------------------------------------------------------------- #
-
-
-@dataclass
-class SQLCommand:
-    """Class that encapsulates a sql command, its name and parameters."""
-    name: str
-    cmd: sql
-    description: field(default=None)
-    params: tuple = field(default_factory=tuple)
-    executed: datetime = field(default=datetime(1970, 1, 1, 0, 0))
 
 # --------------------------------------------------------------------------- #
 #                              CONNECTION POOL                                #
@@ -59,32 +46,28 @@ class ConnectionPool:
 
     __connection_pool = None
 
-    @exception_handler
     @staticmethod
-    def initialise(credentials):
+    def initialize(credentials):
         ConnectionPool.__connection_pool = pool.SimpleConnectionPool(
             2, 10, **credentials)
         logger.info("Initialized connection pool for {} database.".format(
-            credentials['name']))
+            credentials['dbname']))
 
-    @exception_handler
     @staticmethod
     def get_connection():
         con = ConnectionPool.__connection_pool.getconn()
-        name = con.info.dsn_parameters['name']
+        name = con.info.dsn_parameters['dbname']
         logger.info(
             "Getting connection from {} connection pool.".format(name))
         return con
 
-    @exception_handler
     @staticmethod
     def return_connection(connection):
         ConnectionPool.__connection_pool.putconn(connection)
-        name = connection.info.dsn_parameters['name']
+        name = connection.info.dsn_parameters['dbname']
         logger.info(
             "Returning connection to {} connection pool.".format(name))
 
-    @exception_handler
     @staticmethod
     def close_all_connections():
         ConnectionPool.__connection_pool.closeall()
@@ -98,77 +81,87 @@ class Engine:
 
     def __init__(self, credentials: dict) -> None:
         self._credentials = credentials
-        self._connection_pool = ConnectionPool()
 
-    def execute(self, name: str, command: SQLCommand) -> \
+    def execute(self, name: str, command) -> \
         Union[int, bool, str, float, datetime, list, pd.DataFrame,
               np.array]:
         """Executes a single sql command on the object."""
 
-        connection = self._get_connection()
-        cursor = connection.cursor()
+        cursor = self._bind_connection()
 
-        response = cursor.execute(command.cmd, command.params)
+        cursor.execute(command.cmd, command.params)
         command.executed = datetime.now()
 
-        cursor.close()
-        self._close_connection(connection)
+        self._release_connection(cursor)
 
-        cmds = "\n".join([command.description for command in command])
         logger.info(
-            "The following commands completed successfully:\n    {}."
-            .format(cmds))
+            "{} was completed successfully."
+            .format(command.description))
 
-        return response
+    def execute_all(self, name: str, command: list) -> None:
+        """Executes a series of different SQL command within a transaction."""
 
-    def execute_all(self, name: str, commands: list) -> None:
-        """Executes a series of different SQL commands within a transaction."""
+        cursor = self._bind_connection()
 
-        connection = self._get_connection()
-        cursor = connection.cursor()
-
-        for command in commands:
+        for command in command:
             cursor.execute(command.cmd, command.params)
             command.executed = datetime.now()
 
-        cursor.close()
-        self._close_connection(connection)
+        self._release_connection(cursor)
 
-        cmds = "\n".join([command.description for command in commands])
+        cmds = "\n".join([command.description for command in command])
         logger.info(
-            "The following commands completed successfully:\n    {}."
+            "The following command completed successfully:\n    {}."
             .format(cmds))
 
-    def execute_many(self, name: str, command: SQLCommand) -> None:
+    def execute_many(self, name: str, command) -> None:
         """Executes a single SQL command on a multiple objects."""
 
-        connection = self._get_connection()
-        cursor = connection.cursor()
+        cursor = self._bind_connection()
 
         cursor.executemany(command.cmd, command.params)
         command.executed = datetime.now()
 
-        cursor.close()
-        self._close_connection(connection)
+        self._release_connection(cursor)
 
-        cmds = "\n".join([item for item in command.params])
         logger.info(
-            "Successful completion the following items:\n    {}."
-            .format(cmds))
+            "{} was completed successfully."
+            .format(command.description))
 
-    def _get_connection(self) -> psycopg2.connection:
+    def execute_query(self, name: str, command) -> \
+        Union[int, bool, str, float, datetime, list, pd.DataFrame,
+              np.array]:
+        """Executes a single sql command on the object."""
+
+        cursor = self._bind_connection()
+
+        cursor.execute(command.cmd, command.params)
+        response = cursor.fetchone()[0]
+        command.executed = datetime.now()
+
+        self._release_connection(cursor)
+
+        logger.info(
+            "{} was completed successfully."
+            .format(command.description))
+
+        return response
+
+    def _bind_connection(self):
         """Opens connection, sets isolation level, returns the connection."""
 
-        self._connection_pool.initialize(self._credentials)
-        connection = self._connection_pool.get_connection()
-        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        return connection
+        ConnectionPool.initialize(self._credentials)
+        self._connection = ConnectionPool.get_connection()
+        self._connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        cursor = self._connection.cursor()
+        return cursor
 
-    def _close_connection(self, connection: psycopg2.connection) -> None:
+    def _release_connection(self, cursor) -> None:
         """Commits and returns the connection to the pool."""
 
-        connection.commit()
-        self._connection_pool.return_connection()(connection)
+        cursor.close()
+        self._connection.commit()
+        ConnectionPool.return_connection(self._connection)
 
 
 # --------------------------------------------------------------------------- #
@@ -190,11 +183,13 @@ class Admin(ABC):
         pass
 
     @abstractmethod
+    def exists(self, name: str) -> bool:
+        pass
+
     def backup(self, name: str, filepath: str) -> None:
         pass
 
-    @abstractmethod
-    def recover(self, name: str, filepath: str) -> None:
+    def restore(self, name: str, filepath: str) -> None:
         pass
 
 
@@ -209,19 +204,31 @@ class DBA(Admin):
     TODO: Backup and recovery
     """
 
-    @exception_handler
+    @exception_handler()
     def create(self, name) -> None:
         query = CreateDatabase()
-        commands = query.build(name, self._credentials)
-        self._engine.execute(name, commands)
+        command = query.build(name)
+        self._engine.execute(name, command)
 
-    @exception_handler
+    @exception_handler()
+    def grant(self, name) -> None:
+        query = GrantPrivileges(name, self._credentials)
+        command = query.build(name)
+        self._engine.execute(name, command)
+
+    @exception_handler()
+    def exists(self, name) -> None:
+        query = DatabaseExists()
+        command = query.build(name)
+        return self._engine.execute_query(name, command)
+
+    @exception_handler()
     def drop(self, name) -> None:
         query = DropDatabase()
-        commands = query.build(name, self._credentials)
-        self._engine.execute(name, commands)
+        command = query.build(name)
+        self._engine.execute(name, command)
 
-    @exception_handler
+    @exception_handler()
     def backup(self, name: str, filepath: str) -> None:
 
         command = Popen(
@@ -244,7 +251,7 @@ class DBA(Admin):
 
         return result
 
-    @exception_handler
+    @exception_handler()
     def restore(self, name: str, filepath: str) -> None:
 
         command = Popen(
@@ -276,7 +283,7 @@ class DBA(Admin):
 class TableAdmin(Admin):
     """Database table administration."""
 
-    @exception_handler
+    @exception_handler()
     def create(self, name: str, schema: str, columns: dict) -> None:
         """Creates a table according to the schema defined in the file.
 
@@ -286,35 +293,22 @@ class TableAdmin(Admin):
 
         """
         query = CreateTable()
-        commands = query.build(name, schema)
-        self._engine.execute(name, commands)
+        command = query.build(name, schema, columns)
+        self._engine.execute(name, command)
 
-    @exception_handler
-    def drop(self, name, schema: str) -> None:
+    @exception_handler()
+    def drop(self, name: str, schema: str) -> None:
         query = DropTable()
-        commands = query.build(name, schema)
-        self._engine.execute(name, commands)
-
-    @exception_handler
-    def exists(self, name: str, schema: str) -> bool:
-
-        # Obtain the query from the query builder
-        query = TableExists()
         command = query.build(name, schema)
+        self._engine.execute(name, command)
 
-        # Connect to the database and return a cursor
-        connection = self._get_connection()
-        cursor = connection.cursor()
+    @exception_handler()
+    def exists(self, name: str, schema: str) -> None:
+        query = TableExists()
+        command = query.build(name, schema, self._credentials)
+        return self._engine.execute_query(name, command)
 
-        response = cursor.execute(command.sql, command.params)
-        command.executed = datetime.now()
-
-        cursor.close()
-        self._close_connection(connection)
-
-        return response
-
-    @exception_handler
+    @exception_handler()
     def add_columns(self, name: str, schema: str,
                     columns: dict) -> None:
         """Adds one or more columns to a table.
@@ -325,10 +319,10 @@ class TableAdmin(Admin):
         """
 
         query = ColumnInserter()
-        commands = query.build(name, schema, columns)
-        self._engine.execute(name, commands)
+        command = query.build(name, schema, columns)
+        self._engine.execute(name, command)
 
-    @exception_handler
+    @exception_handler()
     def drop_columns(self, name: str, schema: str, columns: list) -> None:
         """Drops one or more columns from a table.
 
@@ -338,8 +332,8 @@ class TableAdmin(Admin):
         """
 
         query = ColumnRemover()
-        commands = query.build(name, schema)
-        self._engine.execute(name, commands)
+        command = query.build(name, schema)
+        self._engine.execute(name, command)
 
 # --------------------------------------------------------------------------- #
 #                      DATABASE ACCESS OBJECT                                 #

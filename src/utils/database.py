@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 22nd 2021, 11:10:02 pm                            #
-# Modified : Friday, July 23rd 2021, 1:03:09 am                               #
+# Modified : Saturday, July 24th 2021, 3:56:38 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -35,7 +35,7 @@ class DBCon:
 
     __connection_pool = None
 
-    @exception_handler
+    @exception_handler()
     @staticmethod
     def initialise(credentials):
         DBCon.__connection_pool = pool.SimpleConnectionPool(
@@ -43,7 +43,7 @@ class DBCon:
         logger.info("Initialized connection pool for {} database.".format(
             credentials['dbname']))
 
-    @exception_handler
+    @exception_handler()
     @staticmethod
     def get_connection():
         con = DBCon.__connection_pool.getconn()
@@ -52,7 +52,7 @@ class DBCon:
             "Getting connection from {} connection pool.".format(dbname))
         return con
 
-    @exception_handler
+    @exception_handler()
     @staticmethod
     def return_connection(connection):
         DBCon.__connection_pool.putconn(connection)
@@ -60,7 +60,7 @@ class DBCon:
         logger.info(
             "Returning connection to {} connection pool.".format(dbname))
 
-    @exception_handler
+    @exception_handler()
     @staticmethod
     def close_all_connections():
         DBCon.__connection_pool.closeall()
@@ -73,7 +73,7 @@ class DBCon:
 
 class DBAdmin:
 
-    @exception_handler
+    @exception_handler()
     def create_database(self, dbname: str) -> str:
         """Creates a new database. If it already exists, its deleted.
 
@@ -110,7 +110,7 @@ class DBAdmin:
 
         return dbname
 
-    @exception_handler
+    @exception_handler()
     def drop_database(self, dbname: str) -> None:
         """Drops database if it exists.
 
@@ -139,7 +139,7 @@ class DBAdmin:
 
         logger.info("Database {} dropped successfully.".format(dbname))
 
-    @exception_handler
+    @exception_handler()
     def database_exists(self, dbname: str) -> None:
         """Prints database version if it exists.
 
@@ -168,7 +168,7 @@ class DBAdmin:
 
         return version
 
-    @exception_handler
+    @exception_handler()
     def create_table(self, dbname: str, tablename: str,
                      sql_command: str) -> tuple:
 
@@ -190,7 +190,7 @@ class DBAdmin:
 
         logger.info("Table {} created.".format(tablename))
 
-    @exception_handler
+    @exception_handler()
     def backup(self, dbname: str, backup_filepath: str) -> tuple:
         """Drops database if it exists.
 
@@ -221,7 +221,7 @@ class DBAdmin:
             exit(1)
         return output
 
-    # @exception_handler
+    # @exception_handler()
     # def restore(self, dbname: str, restore_filepath: str) -> tuple:
     #     """Restore postgres from file
 
@@ -252,7 +252,7 @@ class DBAdmin:
 
     #     return output
 
-    @exception_handler
+    @exception_handler()
     def promote_database(active_db_credentials: str,
                          temp_db_credentials: str) -> None:
         """Promotes a temporary database to active.

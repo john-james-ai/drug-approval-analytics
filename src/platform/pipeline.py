@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 9:27:37 am                            #
-# Modified : Thursday, July 22nd 2021, 1:09:29 pm                             #
+# Modified : Saturday, July 24th 2021, 3:56:38 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -198,7 +198,7 @@ class Step(ABC):
         # of anomalies.
         pass
 
-    @exception_handler
+    @exception_handler()
     def execute(self) -> Return:
         self._start()
         self._run()
