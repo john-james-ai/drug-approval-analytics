@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:23:26 pm                               #
-# Modified : Saturday, July 24th 2021, 12:02:03 am                            #
+# Modified : Saturday, July 24th 2021, 1:56:27 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -22,18 +22,18 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
-import gzip
 import pandas as pd
+import numpy as np
 import psycopg2
 from psycopg2 import pool, sql
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 from subprocess import Popen, PIPE
-from sh import pg_dump
+from typing import Union
 
 from ...utils.logger import exception_handler, logger
-from querybuilder import CreateDatabase, CreateTable
+from querybuilder import CreateDatabase, CreateTable, TableExists
 from querybuilder import DropDatabase, DropTable, ColumnInserter, ColumnRemover
-from querybuilder import SimpleQuery
+
 
 # --------------------------------------------------------------------------- #
 #                              SQL COMMAND                                    #
@@ -44,7 +44,7 @@ from querybuilder import SimpleQuery
 class SQLCommand:
     """Class that encapsulates a sql command, its name and parameters."""
     name: str
-    cmd: psycopg2.sql
+    cmd: sql
     description: field(default=None)
     params: tuple = field(default_factory=tuple)
     executed: datetime = field(default=datetime(1970, 1, 1, 0, 0))
@@ -114,7 +114,7 @@ class Engine:
         cursor.close()
         self._close_connection(connection)
 
-        cmds = "\n".join([command.description for command in commands])
+        cmds = "\n".join([command.description for command in command])
         logger.info(
             "The following commands completed successfully:\n    {}."
             .format(cmds))
@@ -151,9 +151,9 @@ class Engine:
         cursor.close()
         self._close_connection(connection)
 
-        cmds = "\n".join([command.params for item in items])
+        cmds = "\n".join([item for item in command.params])
         logger.info(
-            "Successful completion of {} the following items:\n    {}."
+            "Successful completion the following items:\n    {}."
             .format(cmds))
 
     def _get_connection(self) -> psycopg2.connection:
@@ -306,16 +306,13 @@ class TableAdmin(Admin):
         connection = self._get_connection()
         cursor = connection.cursor()
 
-        cursor.execute(command.sql, command.params)
+        response = cursor.execute(command.sql, command.params)
         command.executed = datetime.now()
 
         cursor.close()
         self._close_connection(connection)
 
-        cmds = "\n".join([command.description for command in commands])
-        logger.info(
-            "The following commands completed successfully:\n    {}."
-            .format(cmds))
+        return response
 
     @exception_handler
     def add_columns(self, name: str, schema: str,

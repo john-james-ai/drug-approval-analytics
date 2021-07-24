@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Saturday, July 24th 2021, 1:35:02 am                             #
+# Modified : Saturday, July 24th 2021, 2:10:26 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -21,7 +21,6 @@
 """Query Template Generator."""
 from abc import ABC, abstractmethod
 from psycopg2 import sql
-from ...utils.logger import logger
 from .database import SQLCommand
 # -----------------------------------------------------------------------------#
 
@@ -102,90 +101,61 @@ class DatabaseExists(QueryBuilder):
                 params=(name,))
 
         return command
+
+
 # --------------------------------------------------------------------------- #
-
-
+#                              TABLE ADMIN                                    #
+# --------------------------------------------------------------------------- #
 class CreateTable(QueryBuilder):
 
-    @ property
-    def tablename(self) -> str:
-        return self._name
+    def build(self, name: str, schema: dict) -> SQLCommand:
 
-    @ tablename.setter
-    def tablename(self, name) -> None:
-        self._name - name
+        # Create columns list and combine it into a single string
+        columns = []
+        for name, constraint in schema.items():
+            column = sql.SQL("{name} {constraint}").format(
+                name=sql.Identifier(name),
+                constraint=sql.Identifier(constraint))
+            columns.append(column)
+        expression = sql.SQL(",").join(columns)
 
-    def add_column(self, name, datatype, nullable=True,
-                   unique=False, default=None):
-        self._columns[name] = {}
-        self._columns[name]['datatype'] = datatype
-        self._columns[name]['nullable'] = nullable
-        self._columns[name]['unique'] = unique
-        self._columns[name]['default'] = default
-        return self
+        query = sql.SQL("CREATE TABLE {table} ({columns});").format(
+            table=sql.Identifier(name, schema),
+            columns=sql.Identifier(expression))
 
-    def set_primary_key(self, columns=None):
-        if columns:
-            if isinstance(columns, str):
-                self._primary_key.append(columns)
-            elif isinstance(columns, list):
-                self._primary_key = columns
-            else:
-                logger.error(
-                    "Primary key must be a string column name \
-                        or list of column names")
-                raise TypeError
+        command = SQLCommand(
+            name="create_table",
+            description="Create {} table".format(name),
+            cmd=query)
 
-    def set_foreign_key(self, name, reftable, refcolumn):
-        self._foreign_keys[name] = {}
-        self._foreign_keys[name]['reftable'] = reftable
-        self._foreign_keys[name]['refcolumn'] = refcolumn
-        return self
-
-    def _get_command(self):
-        self._sql_command = "CREATE TABLE {} (".format(self._name)
-
-    def _get_columns(self):
-        cols = []
-        for name, properties in self._columns.items():
-            column_properties = []
-            column_properties.append(
-                "{} {}".format(name, properties['datatype']))
-            if not properties['nullable']:
-                column_properties.append("NOT NULL")
-            if properties['unique']:
-                column_properties.append("UNIQUE")
-            column_properties = " ".join(column_properties)
-            cols.append(column_properties)
-        self._sql_command += ", ".join(cols)
-
-    def _get_primary_key(self):
-        if len(self._primary_key) > 0:
-            pk = ", ".join(self._primary_key)
-            self._sql_command += "PRIMARY KEY ({})".format(pk)
-
-    def _get_foreign_key(self):
-        if len(self._foreign_keys) > 0:
-            for name, params in self._foreign_keys.items():
-                self._sql_command += "CONSTRAINT {} ".format(name)
-                self._sql_command += "FOREIGN KEY ({}) ".format(
-                    params['refcolumn'])
-                self._sql_command += "REFERENCES {}({}) ".format(
-                    params['reftable'], params['refcolumn'])
-
-    def _get_closing(self):
-        self._sql_command += ");"
-
-    def build(self, name: str, schema: list) -> SQLCommand:
-        self._get_command()
-        self._get_columns()
-        self._get_primary_key()
-        self._get_foreign_key()
-        self._get_closing()
-        return sql.SQL(self._sql_command)
-
+        return command
 
 # -----------------------------------------------------------------------------#
+
+
+class TableExists(QueryBuilder):
+    """Builds a query that evaluates existence of a table."""
+
+    def build(self, name: str, schema: str, dbname: str) -> SQLCommand:
+        command = SQLCommand(
+            name='table_exists',
+            description="Evaluating existance of to {name}.{schema}".format(
+                name=sql.Identifier(name),
+                schema=sql.Identifier(schema)),
+            cmd=sql.SQL("SELECT EXISTS(SELECT 1 FROM information_schema.tables\
+                WHERE table_catalog = {dbname} AND \
+                    table_schema = {schema} AND \
+                    table_name = {name});").format(
+                dbname=sql.Placeholder(dbname),
+                schema=sql.Placeholder(schema),
+                name=sql.Placeholder(name)),
+            params=tuple(name, schema, dbname))
+
+        return command
+
+# -----------------------------------------------------------------------------#
+
+
 class ColumnInserter(QueryBuilder):
     """Builds a query to insert one or more columns into a table."""
 
@@ -211,17 +181,16 @@ class ColumnRemover(QueryBuilder):
 
     def build(self, name: str, schema: str, columns, dict) -> SQLCommand:
 
-        command = \
-            SQLCommand(
-                name="column_remove",
-                description="Column Remover",
-                cmd=sql.SQL("ALTER TABLE {schema}.{table} {cols}; ").format(
-                    schema=schema,
-                    table=sql.Identifier(name),
-                    cols=sql.SQL(", ").join(
-                        sql.Identifier(
-                            sql.SQL("DROP COLUMN {c}").format(c=c)
-                            for c in columns.keys()))))
+        command = SQLCommand(
+            name="column_remove",
+            description="Column Remover",
+            cmd=sql.SQL("ALTER TABLE {schema}.{table} {cols}; ").format(
+                schema=schema,
+                table=sql.Identifier(name),
+                cols=sql.SQL(", ").join(
+                    sql.Identifier(
+                        sql.SQL("DROP COLUMN {c}").format(c=c)
+                        for c in columns.keys()))))
 
         return command
 
