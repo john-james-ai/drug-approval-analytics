@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:23:26 pm                               #
-# Modified : Friday, July 23rd 2021, 8:42:37 pm                               #
+# Modified : Friday, July 23rd 2021, 9:43:20 pm                               #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -31,7 +31,7 @@ from subprocess import Popen, PIPE
 
 from ...utils.logger import exception_handler, logger
 from querybuilder import CreateDatabase, CreateTable
-from querybuilder import DropDatabase, DropTable
+from querybuilder import DropDatabase, DropTable, ColumnInserter, ColumnRemover
 from querybuilder import SimpleQuery
 
 # --------------------------------------------------------------------------- #
@@ -212,7 +212,7 @@ class DBA(Admin):
         self._engine.execute(name, commands)
 
 # --------------------------------------------------------------------------- #
-#                       POSTGRES TABLE ADMINISTRATION                         #
+#                         TABLE ADMINISTRATION                                #
 # --------------------------------------------------------------------------- #
 
 
@@ -243,13 +243,11 @@ class TableAdmin(Admin):
 
         # Obtain the query from the query builder
         query = TableExists()
-        commands = query.build(name, schema)
+        command = query.build(name, schema)
 
         # Connect to the database and return a cursor
         connection = self._get_connection()
         cursor = connection.cursor()
-
-        Execute the command
 
         cursor.execute(command.sql, command.params)
         command.executed = datetime.now()
@@ -289,4 +287,6 @@ class TableAdmin(Admin):
         commands = query.build(name, schema)
         self._engine.execute(name, commands)
 
-    @
+# --------------------------------------------------------------------------- #
+#                      DATABASE ACCESS OBJECT                                 #
+# --------------------------------------------------------------------------- #

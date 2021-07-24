@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Friday, July 23rd 2021, 9:07:59 pm                               #
+# Modified : Friday, July 23rd 2021, 10:11:46 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -233,27 +233,3 @@ class DropTable(QueryBuilder):
                 sql.Identifier(name)))
 
         return command
-
-
-# --------------------------------------------------------------------------- #
-#                          DATABASE ACCESS                                    #
-# --------------------------------------------------------------------------- #
-
-
-class SimpleQuery:
-    """Prepares an SQL command for a simple query"""
-
-    def build(self, name: str, tablename: str, columns: list) -> None:
-        self._name = name
-        self._tablename = tablename
-        self._columns = columns
-
-        query = sql.SQL("SELECT {fields} from {table} WHERE name = %s").format(
-            fields=sql.SQL(',').join(
-                sql.Identifier(n) for n in self._columns),
-            table=self._tablename)
-
-        response = {}
-        response['query'] = query
-        response['params'] = self._name
-        return response
