@@ -18,7 +18,7 @@
 # License  : BSD 3-clause "New" or "Revised" License                           #
 # Copyright: (c) 2021 nov8.ai                                                  #
 #==============================================================================#
-#%%
+# %%
 import pytest
 import pandas as pd
 import psycopg2
@@ -27,8 +27,8 @@ import logging
 
 from src.utils.config import DBConfig
 from src.data.database.admin import DBAdmin
-from src.data.database.querybuilder import CreateDatabase, CreateTable, TableExists
-from src.data.database.querybuilder import DropTable
+from src.data.database.sqlgen import CreateDatabase, CreateTable, TableExists
+from src.data.database.sqlgen import DropTable
 # -----------------------------------------------------------------------------#
 logging.basicConfig()
 logging.root.setLevel(logging.NOTSET)
@@ -47,21 +47,21 @@ class QueryGenTests:
     def test_create_table(self):
         tablename = 'some_tbl'
         sql_command = (CreateTable()
-        .set_name(tablename)
-        .add_column('col1', 'VARCHAR(10)', False, True)
-        .add_column('col2', 'VARCHAR(20)', True, False)
-        .add_column('col3', 'VARCHAR(30)', True, False)
-        .add_column('col4', 'VARCHAR(40)', True, False)
-        .get())
+                       .set_name(tablename)
+                       .add_column('col1', 'VARCHAR(10)', False, True)
+                       .add_column('col2', 'VARCHAR(20)', True, False)
+                       .add_column('col3', 'VARCHAR(30)', True, False)
+                       .add_column('col4', 'VARCHAR(40)', True, False)
+                       .get())
 
         cur = self._conn.cursor()
-        cur.execute(sql_command)  
-        self._conn.commit()       
+        cur.execute(sql_command)
+        self._conn.commit()
         cur.close()
 
         sql_command = TableExists(tablename).get()
         cur = self._conn.cursor()
-        cur.execute(sql_command, (tablename,))                
+        cur.execute(sql_command, (tablename,))
 
         assert cur.fetchone()[0], "Error: Table does not exist."
         logger.info("QueryGenTests CreateTable Passed Test")
@@ -69,27 +69,28 @@ class QueryGenTests:
     def test_drop_table(self):
         tablename = 'some_tbl'
         sql_command = (DropTable()
-        .set_name(tablename)
-        .get())
+                       .set_name(tablename)
+                       .get())
 
         cur = self._conn.cursor()
-        cur.execute(sql_command)  
-        self._conn.commit()       
+        cur.execute(sql_command)
+        self._conn.commit()
         cur.close()
 
         sql_command = TableExists(tablename).get()
         cur = self._conn.cursor()
-        cur.execute(sql_command, (tablename,))                
+        cur.execute(sql_command, (tablename,))
 
         assert not cur.fetchone()[0], "Error: Table was not dropped."
-        logger.info("QueryGenTests DropTable Passed Test")        
+        logger.info("QueryGenTests DropTable Passed Test")
 
 
 def main():
     qgt = QueryGenTests()
     qgt.test_create_table()
     qgt.test_drop_table()
-    
+
+
 if __name__ == "__main__":
-    main()   
-#%%
+    main()
+# %%

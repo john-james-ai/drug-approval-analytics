@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, July 4th 2021, 6:46:35 pm                                #
-# Modified : Saturday, July 24th 2021, 6:32:30 am                             #
+# Modified : Saturday, July 24th 2021, 2:09:49 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -25,7 +25,6 @@ import pytest
 import pandas as pd
 from src.platform.database import DBA, TableAdmin
 from src.utils.config import dba_credentials
-print(dba_credentials)
 # -----------------------------------------------------------------------------#
 
 
@@ -78,8 +77,9 @@ class TableTests:
         filepath = "./data/metadata/repository.csv"
         columns = pd.read_csv(filepath, index_col=False, usecols=[
             'command'])
-        columns = ", ".join(columns['command'])
-        return columns
+        columns = [column for column in columns.values.tolist()]
+        print(columns)
+        return tuple(columns)
 
     def test_create_table(self):
         columns = self._build_schema()
@@ -159,10 +159,10 @@ class DBATests2:
 
 
 def main():
-    dba = DBATests1()
-    dba.test_database_exists()
-    dba.test_create_database()
-    dba.test_drop_database()
+    # dba = DBATests1()
+    # dba.test_database_exists()
+    # dba.test_create_database()
+    # dba.test_drop_database()
 
     dba = TableTests()
     dba.test_create_table()

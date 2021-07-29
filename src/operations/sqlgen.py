@@ -3,7 +3,7 @@
 # =========================================================================== #
 # Project  : Drug Approval Analytics                                          #
 # Version  : 0.1.0                                                            #
-# File     : \src\data\database\querybuilder.py                               #
+# File     : \src\data\database\sqlgen.py                               #
 # Language : Python 3.9.5                                                     #
 # --------------------------------------------------------------------------  #
 # Author   : John James                                                       #
@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Saturday, July 24th 2021, 6:31:26 am                             #
+# Modified : Thursday, July 29th 2021, 6:20:14 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -46,21 +46,79 @@ class SQLCommand:
     params: tuple = field(default_factory=tuple)
     executed: datetime = field(default=datetime(1970, 1, 1, 0, 0))
 
+
 # --------------------------------------------------------------------------- #
-#                          DATABASE ADMIN                                     #
+#                                 USER ADMIN                                  #
 # --------------------------------------------------------------------------- #
+class CreateUser(QueryBuilder):
+
+    def build(self, credentials: dict, create_db: bool = True)\
+            -> SQLCommand:
+
+        if create_db:
+            description = "CREATE USER {} WITH PASSWORD {} CREATEDB;".format(
+                credentials['user'], '*****')
+            cmd = sql.SQL("CREATE USER {} WITH PASSWORD {} CREATEDB;").format(
+                sql.Identifier(credentials['user']),
+                sql.Placeholder())
+        else:
+            description = "CREATE USER {} WITH PASSWORD {} NOCREATEDB;".format(
+                credentials['user'], '*****')
+            cmd = sql.SQL("CREATE USER {} WITH PASSWORD {} NOCREATEDB;")\
+                .format(sql.Identifier(credentials['user']),
+                        sql.Placeholder())
+        command = \
+            SQLCommand(
+                name="create_user", description=description, cmd=cmd,
+                params=(credentials['password'],))
+
+        return command
 
 
+# -----------------------------------------------------------------------------#
+class DropUser(QueryBuilder):
+
+    def build(self, name: str) -> SQLCommand:
+
+        command = SQLCommand(
+            name="drop_user",
+            description="Drop USER {}.".format(name),
+            cmd=sql.SQL("DROP USER IF EXISTS {} ;").format(
+                sql.Identifier(name)))
+
+        return command
+
+
+# -----------------------------------------------------------------------------#
+class UserExists(QueryBuilder):
+
+    def build(self, name: str) -> SQLCommand:
+
+        command = SQLCommand(
+            name="user_exists",
+            description="Determines if user {} exists.;".format(
+                name),
+            cmd=sql.SQL("""SELECT EXISTS(
+                    SELECT usename FROM pg_catalog.pg_user
+                    WHERE lower(usename) = lower(%s));"""),
+            params=(name,)
+        )
+
+        return command
+
+
+# --------------------------------------------------------------------------- #
+#                               DATABASE ADMIN                                #
+# --------------------------------------------------------------------------- #
 class CreateDatabase(QueryBuilder):
 
     def build(self, name: str) -> SQLCommand:
 
-        command =\
-            SQLCommand(
-                name="create",
-                description="Create {} database".format(name),
-                cmd=sql.SQL("CREATE DATABASE {} ;").format(
-                    sql.Identifier(name)))
+        command = SQLCommand(
+            name="create",
+            description="Create {} database".format(name),
+            cmd=sql.SQL("CREATE DATABASE {} ;").format(
+                sql.Identifier(name)))
 
         return command
 
@@ -68,32 +126,46 @@ class CreateDatabase(QueryBuilder):
 # -----------------------------------------------------------------------------#
 class GrantPrivileges(QueryBuilder):
 
-    def build(self, name: str, credentials: dict) -> SQLCommand:
+    def build(self, name: str, user: str) -> SQLCommand:
 
-        command =\
-            SQLCommand(
-                name="grant",
-                description="Grant privileges on database {} to {}"
-                .format(name, self._credentials['user']),
-                cmd=sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO PUBLIC ;")
-                .format(
-                    sql.Identifier(name)))
+        command = SQLCommand(
+            name="grant",
+            description="Grant privileges on database {} to {}"
+            .format(name, user),
+            cmd=sql.SQL("GRANT ALL PRIVILEGES ON DATABASE {} TO {} ;")
+            .format(
+                sql.Identifier(name),
+                sql.Identifier(user)))
 
         return command
 
+
 # -----------------------------------------------------------------------------#
-
-
 class DropDatabase(QueryBuilder):
 
     def build(self, name: str) -> SQLCommand:
 
-        command = \
-            SQLCommand(
-                name="drop database",
-                description="Drop {} database if it exists.".format(name),
-                cmd=sql.SQL("DROP DATABASE IF EXISTS {} ;").format(
-                    sql.Identifier(name)))
+        command = SQLCommand(
+            name="drop database",
+            description="Drop {} database if it exists.".format(name),
+            cmd=sql.SQL("DROP DATABASE IF EXISTS {} ;").format(
+                sql.Identifier(name)))
+
+        return command
+
+
+# --------------------------------------------------------------------------- #
+class DatabaseRename(QueryBuilder):
+
+    def build(self, name: str, newname: str) -> SQLCommand:
+
+        command = SQLCommand(
+            name="database exists",
+            description="Check existence of {} database.".format(name),
+            cmd=sql.SQL("ALTER DATABASE {} RENAME TO {};".format(
+                sql.Identifier(name),
+                sql.Identifier(newname)
+            )))
 
         return command
 
@@ -104,14 +176,30 @@ class DatabaseExists(QueryBuilder):
 
     def build(self, name: str) -> SQLCommand:
 
-        command = \
-            SQLCommand(
-                name="database exists",
-                description="Check existence of {} database.".format(name),
-                cmd=sql.SQL("""SELECT EXISTS(
+        command = SQLCommand(
+            name="database exists",
+            description="Check existence of {} database.".format(name),
+            cmd=sql.SQL("""SELECT EXISTS(
                     SELECT datname FROM pg_catalog.pg_database
                     WHERE lower(datname) = lower(%s));"""),
-                params=(name,))
+            params=(name,))
+
+        return command
+
+
+# --------------------------------------------------------------------------- #
+class DatabaseStats(QueryBuilder):
+
+    def build(self) -> SQLCommand:
+
+        command = SQLCommand(
+            name="database_stats",
+            description="Database stats for each table in the \
+                current database",
+            cmd=sql.SQL("""SELECT schemaname, relname, n_live_tup \
+                FROM pg_stat_user_tables
+                            ORDER BY schemaname, relname;""")
+        )
 
         return command
 
@@ -119,64 +207,68 @@ class DatabaseExists(QueryBuilder):
 # --------------------------------------------------------------------------- #
 #                              TABLE ADMIN                                    #
 # --------------------------------------------------------------------------- #
-class CreateTable(QueryBuilder):
-
-    def build(self, name: str, schema: dict, columns: list) -> SQLCommand:
-
-        query = sql.SQL("CREATE TABLE {schema}.{table} ({columns});").format(
-            schema=sql.Identifier(schema),
-            table=sql.Identifier(name),
-            columns=sql.SQL(', ').join(map(
-                sql.Identifier(str(columns)))))
-
-        command = SQLCommand(
-            name="create_table",
-            description="Create {}.{} table".format(schema, name),
-            cmd=query)
-
-        return command
-
-# -----------------------------------------------------------------------------#
-
-
 class TableExists(QueryBuilder):
     """Builds a query that evaluates existence of a table."""
 
-    def build(self, name: str, schema: str, dbname: str) -> SQLCommand:
+    def build(self, name: str, dbname: str) -> SQLCommand:
         command = SQLCommand(
             name='table_exists',
-            description="Evaluating existance of to {name}.{schema}".format(
-                name=sql.Identifier(name),
-                schema=sql.Identifier(schema)),
+            description="Evaluating existance of {name}".format(
+                name=sql.Identifier(name)),
             cmd=sql.SQL("SELECT EXISTS(SELECT 1 FROM information_schema.tables\
                 WHERE table_catalog = {dbname} AND \
-                    table_schema = {schema} AND \
+                    table_schema = PUBLIC AND \
                     table_name = {name});").format(
                 dbname=sql.Placeholder(dbname),
-                schema=sql.Placeholder(schema),
                 name=sql.Placeholder(name)),
-            params=tuple(name, schema, dbname))
+            params=tuple(name, dbname))
 
         return command
 
+
 # -----------------------------------------------------------------------------#
-
-
 class ColumnInserter(QueryBuilder):
     """Builds a query to insert one or more columns into a table."""
 
-    def build(self, name: str, schema: str, columns, dict) -> SQLCommand:
+    def build(self, name: str, columns, list) -> SQLCommand:
 
         command = SQLCommand(
-            name='add_column',
+            name='add_columns',
             description="Adding column(s) to {name}".format(name=name),
-            cmd=sql.SQL("ALTER TABLE {schema}.{table} {cols}; ").format(
-                schema=schema,
+            cmd=sql.SQL("ALTER TABLE {table} {columns}".format(
                 table=sql.Identifier(name),
-                cols=sql.SQL(", ").join(
-                    sql.Identifier(
-                        sql.SQL("ADD {c}").format(c=c)
-                        for c in columns.values()))))
+                columns=sql.Identifier(sql.SQL(", ").join(
+                    sql.SQL("ADD COLUMN IF NOT EXISTS\
+                            {column} {datatype}".format(
+                        column=name,
+                        datatype=datatype)
+                        for name, datatype in columns.items())
+                )
+                )
+            )
+            )
+        )
+
+        return command
+
+
+# -----------------------------------------------------------------------------#
+class ColumnExists(QueryBuilder):
+    """Builds a query to insert one or more columns into a table."""
+
+    def build(self, name: str, column: str) -> SQLCommand:
+
+        command = SQLCommand(
+            name='add_columns',
+            description="Adding column(s) to {name}".format(name=name),
+            cmd=sql.SQL("SELECT EXISTS (SELECT 1 \
+            FROM information_schema.columns \
+            WHERE table_name = {table} AND column_name = {column});".format(
+                table=sql.Placeholder(),
+                column=sql.Placeholder())
+            ),
+            params=(name, column,)
+        )
 
         return command
 
@@ -185,18 +277,17 @@ class ColumnInserter(QueryBuilder):
 class ColumnRemover(QueryBuilder):
     """Builds a query to remove one or more columns from a table."""
 
-    def build(self, name: str, schema: str, columns, dict) -> SQLCommand:
+    def build(self, name: str, columns, list) -> SQLCommand:
 
         command = SQLCommand(
             name="column_remove",
             description="Column Remover",
-            cmd=sql.SQL("ALTER TABLE {schema}.{table} {cols}; ").format(
-                schema=schema,
+            cmd=sql.SQL("ALTER TABLE {table} {cols}; ").format(
                 table=sql.Identifier(name),
                 cols=sql.SQL(", ").join(
                     sql.Identifier(
                         sql.SQL("DROP COLUMN {c}").format(c=c)
-                        for c in columns.keys()))))
+                        for c in columns))))
 
         return command
 
@@ -204,13 +295,12 @@ class ColumnRemover(QueryBuilder):
 # -----------------------------------------------------------------------------#
 class DropTable(QueryBuilder):
 
-    def build(self, name: str, schema: str) -> SQLCommand:
+    def build(self, name: str) -> SQLCommand:
 
         command = SQLCommand(
             name="drop_table",
             description="Drop {} table if it exists.".format(name),
-            cmd=sql.SQL("DROP TABLE IF EXISTS {}.{} ;").format(
-                sql.Identifier(schema),
+            cmd=sql.SQL("DROP TABLE IF EXISTS {};").format(
                 sql.Identifier(name)))
 
         return command

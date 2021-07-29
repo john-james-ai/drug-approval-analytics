@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 15th 2021, 5:47:58 pm                             #
-# Modified : Saturday, July 24th 2021, 6:04:26 am                             #
+# Modified : Thursday, July 29th 2021, 2:04:15 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -21,7 +21,6 @@
 import os
 import logging
 from configparser import ConfigParser
-import yaml
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
@@ -197,39 +196,6 @@ class DataSourceConfig:
         sources = sources.split(',')
         return sources
 
-# ----------------------------------------------------------------------------#
-#                            JSON CONFIG PARSER                               #
-# ----------------------------------------------------------------------------#
-
-
-class RepositoryConfig:
-    """Defines the schema for the Repository database."""
-
-    filepath = './config/repository.yaml'
-
-    def __init__(self, filepath: str = None) -> None:
-        self._filepath = filepath if filepath is not None \
-            else RepositoryConfig.filepath
-
-    def get_config(self, name: str = None) -> dict:
-        config = {}
-        with open(self._filepath) as file:
-            data = yaml.load(file, Loader=yaml.FullLoader)
-
-        if name:
-            try:
-                config = data.get(name)
-            except Exception as e:
-                logger.error(e)
-        else:
-            config = data
-
-        return config
-
-    def set_config(self, config: dict) -> None:
-        with open(self._filepath, 'w') as file:
-            yaml.dump(config, file)
-
 
 # ----------------------------------------------------------------------------#
 #                           CONFIGURATIONS                                    #
@@ -237,6 +203,7 @@ class RepositoryConfig:
 # Database credentials
 dba_credentials = DBCredentials().get_config('postgres')
 aact_credentials = DBCredentials().get_config('AACT')
-daa_credentials = DBCredentials().get_config('daa')
-# Database configurations
-repository_config = RepositoryConfig().get_config()
+engineer_credentials = DBCredentials().get_config('FeatureStore')
+operator_credentials = DBCredentials().get_config('Operations')
+test_credentials = DBCredentials().get_config('Test')
+temp_credentials = DBCredentials().get_config('Temp')
