@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 1:25:36 pm                            #
-# Modified : Thursday, July 29th 2021, 9:16:00 pm                             #
+# Modified : Friday, July 30th 2021, 1:02:52 am                               #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -40,6 +40,8 @@ from .core import Executable, Event, Pipeline, Step
 # --------------------------------------------------------------------------- #
 #                              REPOSITORY                                     #
 # --------------------------------------------------------------------------- #
+
+
 class Repository(ABC):
     """Base class for Repository subclasses.
 
@@ -100,13 +102,13 @@ class ArtifactRepo(Repository):
     def add(self, artifact: Artifact) -> int:
         self._session.add(artifact)
         self._session.flush()
+        self._commit()
         return artifact.id
 
     def add_all(self, artifacts: List[Artifact]) -> List[int]:
         ids = []
         for artifact in artifacts:
             ids.append(self.add(artifact))
-        self._session.commit()
         return ids
 
     def get_by_id(self, artifact_id: int) -> Artifact:
@@ -141,6 +143,7 @@ class DataSourceRepo(Repository):
     def add(self, datasource: DataSource) -> int:
         self._session.add(datasource)
         self._session.flush()
+        self._session.commit()
         return datasource.id
 
     def add_all(self, datasources: List[DataSource]) -> List[int]:

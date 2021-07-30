@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 29th 2021, 10:49:02 am                            #
-# Modified : Thursday, July 29th 2021, 9:16:46 pm                             #
+# Modified : Friday, July 30th 2021, 1:01:22 am                               #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -24,10 +24,12 @@ from datetime import datetime
 import pytest
 import pandas as pd
 
-from src.operations.core import DataSource, Entity, Feature
-from src.operations.core import Event, Pipeline, Step
-from src.operations.repository import DataSourceRepo, EntityRepo, FeatureRepo
-from src.operations.repository import EventRepo, PipelineRepo, StepRepo
+from sqlalchemy import inspect
+
+from src.operations.core import Artifact, DataSource, Entity, Feature
+from src.operations.core import Executable, Event, Pipeline, Step
+from src.operations.repository import ArtifactRepo, DataSourceRepo, EntityRepo, FeatureRepo
+from src.operations.repository import ExecutableRepo, EventRepo, PipelineRepo, StepRepo
 from src.operations.database import ORMDatabase
 from src.operations.config import dba_credentials
 # --------------------------------------------------------------------------- #
@@ -37,11 +39,10 @@ from src.operations.config import dba_credentials
 class DataSourceTests:
 
     def __init__(self):
-        ormdb = ORMDatabase(dba_credentials)
-        ormdb.reset()
-        self.repo = DataSourceRepo(ormdb)
-        assert len(self.repo.get_all()
-                   ) == 0, "DataSource Error: DataSource remnants in Database"
+        # Get clean dataabase
+        self.ormdb = ORMDatabase(dba_credentials)
+        self.ormdb.reset()
+        self.repo = ArtifactRepo(self.ormdb)
 
     def test_add(self):
         filepath = "./data/metadata/datasources.csv"
@@ -60,7 +61,9 @@ class DataSourceTests:
             artifact.lifecycle = details['lifecycle']
             artifact.updated = datetime.strptime(
                 details['last_updated'], "%m,%d,%y")
+
             artifact_ids.append(self.repo.add(artifact))
+        print(DataSource.__table__)
         artifacts = self.repo.get_all()
         print(artifacts)
         assert len(artifacts) == 10, "Add DataSource Error: Expected 10 \
