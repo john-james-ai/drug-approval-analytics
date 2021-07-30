@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:23:26 pm                               #
-# Modified : Friday, July 30th 2021, 12:02:21 am                              #
+# Modified : Friday, July 30th 2021, 4:18:37 pm                               #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -29,46 +29,14 @@ import numpy as np
 import pandas as pd
 from datetime import datetime
 
-
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base, ConcreteBase
-from sqlalchemy.orm import sessionmaker
-
 from ..utils.logger import exception_handler
 from .sqlgen import CreateUser, DropUser, UserExists, SQLCommand
-from .sqlgen import ColumnInserter, ColumnRemover
 from .sqlgen import TableExists, DropTable, ColumnExists
 from .sqlgen import CreateDatabase, DropDatabase, DatabaseRename
 from .sqlgen import GrantPrivileges, DatabaseExists, DatabaseStats
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
-Base = declarative_base()
-ConcreteBase = ConcreteBase
 
-
-class ORMDatabase:
-    """Connects and established a session maker to the Sqlalchemy Database."""
-
-    def __init__(self, credentials):
-        self._credentials = credentials
-        self._database_uri = f'postgresql://'\
-            f'{credentials.user}:{credentials.password}' \
-            f'@{credentials.host}:{credentials.port}/'
-
-        self._database = create_engine(
-            f'{self._database_uri}{self._credentials.dbname}')
-
-    def reset(self):
-        Base.metadata.clear()
-        Base.metadata.create_all(self._database, checkfirst=False)
-
-    @property
-    def database(self):
-        return self._database
-
-    @property
-    def session(self):
-        return sessionmaker(self._database)
 
 # --------------------------------------------------------------------------- #
 #                              CONNECTION POOL                                #
@@ -85,7 +53,7 @@ class ConnectionPool:
         ConnectionPool.__connection_pool = pool.SimpleConnectionPool(
             2, 10, **credentials)
         logger.info("Initialized connection pool for {} database.".format(
-            credentials.dbname))
+            credentials['dbname']))
 
     @staticmethod
     def get_connection():
@@ -183,7 +151,7 @@ class Engine:
 
         return response
 
-    def execute_query(self, name: str, command) -> \
+    def execute_query(self, name: str, command: SQLCommand) -> \
         Union[int, bool, str, float, datetime, list, pd.DataFrame,
               np.array]:
         """Executes a single sql command on the object."""
@@ -322,11 +290,11 @@ class DBAdmin(Admin):
 
         command = ['pg_dump',
                    '--dbname=postgresql://{}:{}@{}:{}/{}'.format(
-                       credentials.user,
-                       credentials.password,
-                       credentials.host,
-                       credentials.port,
-                       credentials.dbname),
+                       credentials['user'],
+                       credentials['password'],
+                       credentials['host'],
+                       credentials['port'],
+                       credentials['dbname']),
                    '-Fc -f',
                    filepath,
                    '-v']
@@ -334,7 +302,7 @@ class DBAdmin(Admin):
         self._run_process(command)
 
         logger.info("Executed BACKUP on the {} database".format(
-            credentials.dbname))
+            credentials['dbname']))
 
     @exception_handler()
     def restore(self, credentials: dict, filepath: str) -> None:
@@ -342,11 +310,11 @@ class DBAdmin(Admin):
         command = ['pg_restore',
                    '--no-owner',
                    '--dbname=postgresql://{}:{}@{}:{}/{}'.format(
-                       credentials.user,
-                       credentials.password,
-                       credentials.host,
-                       credentials.port,
-                       credentials.dbname),
+                       credentials['user'],
+                       credentials['password'],
+                       credentials['host'],
+                       credentials['port'],
+                       credentials['dbname']),
                    '-v',
                    filepath]
 
@@ -358,12 +326,12 @@ class DBAdmin(Admin):
     def load(self, credentials: dict, filepath: str) -> None:
 
         command = 'pg_restore --no-owner -d {} {}'.format(
-            credentials.dbname, filepath)
+            credentials['dbname'], filepath)
 
         self._run_process(command)
 
         logger.info("Executed RESTORE on the {} database".format(
-            credentials.dbname))
+            credentials['dbname']))
 
     @exception_handler()
     def _run_process(self, command):
@@ -400,57 +368,30 @@ class TableAdmin(Admin):
         self._engine.execute(name, command)
 
     @exception_handler()
-    def drop(self, name: str) -> None:
+    def drop(self, name: str, cascade: bool = False) -> None:
         query = DropTable()
-        command = query.build(name)
+        command = query.build(name, cascade)
         return self._engine.execute(name, command)
 
     @exception_handler()
-    def exists(self, name: str) -> None:
+    def exists(self, name: str, schema: str = 'PUBLIC') -> None:
         query = TableExists()
-        command = query.build(name, self._credentials.dbname)
+        command = query.build(name, schema)
         return self._engine.execute_query(name, command)
 
     @exception_handler()
-    def add_columns(self, name: str, columns: list) -> None:
+    def column_exists(self, name: str, table: str) -> None:
         """Adds one or more columns to a table.
 
         Arguments:
-            name (str): the name of the table
-            columns (dict): Dictionary with column names as keys and
-                datatypes as values. Other column constraints are not
-                supported to date.
-        """
-
-        query = ColumnInserter()
-        command = query.build(name, columns)
-        return self._engine.execute(name, command)
-
-    @exception_handler()
-    def column_exists(self, name: str, column: str) -> None:
-        """Adds one or more columns to a table.
-
-        Arguments:
-            name (str): Name of the table.
-            column (str): Name of the column.
+            name (str): Name of the column.
+            table (str): Name of the table.
         """
 
         query = ColumnExists()
-        command = query.build(name, column)
+        command = query.build(name, table)
         return self._engine.execute_query(name, command)
 
-    @exception_handler()
-    def drop_columns(self, name: str, columns: list) -> None:
-        """Drops one or more columns from a table.
-
-        Arguments:
-            name (str): the name of the table
-            columns (list): a list of column names to drop.
-        """
-
-        query = ColumnRemover()
-        command = query.build(name, columns)
-        return self._engine.execute(name, command)
 
 # --------------------------------------------------------------------------- #
 #                      DATABASE ACCESS OBJECT                                 #

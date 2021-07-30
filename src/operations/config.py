@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 15th 2021, 5:47:58 pm                             #
-# Modified : Thursday, July 29th 2021, 3:13:32 pm                             #
+# Modified : Friday, July 30th 2021, 12:38:28 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -146,6 +146,10 @@ class DBCredentials:
         self._credentials = Config(self._filepath).get_section(dbname)
         return self
 
+    def get_config(self, dbname: str) -> dict:
+        self.set_config(dbname)
+        return self._credentials
+
     @property
     def dbname(self):
         return self._credentials['dbname']
@@ -201,9 +205,9 @@ class DataSourceConfig:
 #                           CONFIGURATIONS                                    #
 # ----------------------------------------------------------------------------#
 # Database credentials
-dba_credentials = DBCredentials().set_config('postgres')
-aact_credentials = DBCredentials().set_config('AACT')
-engineer_credentials = DBCredentials().set_config('FeatureStore')
-operator_credentials = DBCredentials().set_config('Operations')
-test_credentials = DBCredentials().set_config('Test')
-temp_credentials = DBCredentials().set_config('Temp')
+dba_credentials = DBCredentials().get_config('postgres')
+aact_credentials = DBCredentials().get_config('AACT')
+engineer_credentials = DBCredentials().get_config('FeatureStore')
+operator_credentials = DBCredentials().get_config('Operations')
+test_credentials = DBCredentials().get_config('Test')
+temp_credentials = DBCredentials().get_config('Temp')

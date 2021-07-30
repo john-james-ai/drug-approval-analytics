@@ -12,26 +12,33 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Thursday, July 29th 2021, 3:10:40 pm                             #
+# Modified : Friday, July 30th 2021, 4:17:54 pm                               #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
-"""Query Template Generator."""
+"""SQL Generator.
+
+Module contains SQL generator classes for three primary contexts:
+
+    - Database Administration: Including user, database and table management.
+    - Operations Repository Administration: SQL to create the repository of
+        artifacts (data sources, datasets, machine learning
+        parameters) and events (execution of pipelines and pipeline steps).
+    - Operations Repository Usage: Basic SQL to support rudimentary CRUD
+        operations on artifacts and events.
+
+All queries are returned in a standard SQLCommand dataclass that bundles
+the sql with basic descriptive metadata and associated SQL command parameters.
+This information is provided for logging, operations and pipeline management.
+
+"""
 from abc import ABC, abstractmethod
+from typing import Union
 from psycopg2 import sql
 from dataclasses import dataclass, field
 from datetime import datetime
-# -----------------------------------------------------------------------------#
-
-
-class QueryBuilder(ABC):
-    """Generates sql query templates for pyscopg2 SQL statements. """
-
-    @abstractmethod
-    def build(self, name: str, *args, **kwargs):
-        pass
 # --------------------------------------------------------------------------- #
 #                              SQL COMMAND                                    #
 # --------------------------------------------------------------------------- #
@@ -42,14 +49,25 @@ class SQLCommand:
     """Class that encapsulates a sql command, its name and parameters."""
     name: str
     cmd: sql
-    description: field(default=None)
-    params: tuple = field(default_factory=tuple)
+    description: str = field(default=None)
+    params: tuple = field(default=())
     executed: datetime = field(default=datetime(1970, 1, 1, 0, 0))
 
 
 # --------------------------------------------------------------------------- #
+#                             QUERY BUILDER                                   #
+# --------------------------------------------------------------------------- #
+class QueryBuilder(ABC):
+    """Abstract base class for concrete builder subclasses."""
+
+    @abstractmethod
+    def build(self, name: str, *args, **kwargs):
+        pass
+# --------------------------------------------------------------------------- #
 #                                 USER ADMIN                                  #
 # --------------------------------------------------------------------------- #
+
+
 class CreateUser(QueryBuilder):
 
     def build(self, credentials: dict, create_db: bool = True)\
@@ -57,20 +75,21 @@ class CreateUser(QueryBuilder):
 
         if create_db:
             description = "CREATE USER {} WITH PASSWORD {} CREATEDB;".format(
-                credentials.user, '*****')
+                credentials['user'], '*****')
             cmd = sql.SQL("CREATE USER {} WITH PASSWORD {} CREATEDB;").format(
-                sql.Identifier(credentials.user),
+                sql.Identifier(credentials['user']),
                 sql.Placeholder())
         else:
             description = "CREATE USER {} WITH PASSWORD {} NOCREATEDB;".format(
-                credentials.user, '*****')
+                credentials['user'], '*****')
             cmd = sql.SQL("CREATE USER {} WITH PASSWORD {} NOCREATEDB;")\
-                .format(sql.Identifier(credentials.user),
+                .format(sql.Identifier(credentials['user']),
                         sql.Placeholder())
         command = \
             SQLCommand(
                 name="create_user", description=description, cmd=cmd,
-                params=(credentials.password,))
+                params=tuple((credentials['password'],))
+            )
 
         return command
 
@@ -101,7 +120,7 @@ class UserExists(QueryBuilder):
             cmd=sql.SQL("""SELECT EXISTS(
                     SELECT usename FROM pg_catalog.pg_user
                     WHERE lower(usename) = lower(%s));"""),
-            params=(name,)
+            params=tuple((name,))
         )
 
         return command
@@ -182,7 +201,8 @@ class DatabaseExists(QueryBuilder):
             cmd=sql.SQL("""SELECT EXISTS(
                     SELECT datname FROM pg_catalog.pg_database
                     WHERE lower(datname) = lower(%s));"""),
-            params=(name,))
+            params=tuple((name,))
+        )
 
         return command
 
@@ -210,148 +230,401 @@ class DatabaseStats(QueryBuilder):
 class TableExists(QueryBuilder):
     """Builds a query that evaluates existence of a table."""
 
-    def build(self, name: str, dbname: str) -> SQLCommand:
+    def build(self, name: str, schema: str = "PUBLIC") -> SQLCommand:
         command = SQLCommand(
             name='table_exists',
             description="Evaluating existance of {name}".format(
-                name=sql.Identifier(name)),
-            cmd=sql.SQL("SELECT EXISTS(SELECT 1 FROM information_schema.tables\
-                WHERE table_catalog = {dbname} AND \
-                    table_schema = PUBLIC AND \
-                    table_name = {name});").format(
-                dbname=sql.Placeholder(dbname),
-                name=sql.Placeholder(name)),
-            params=tuple(name, dbname))
-
-        return command
-
-
-# -----------------------------------------------------------------------------#
-class ColumnInserter(QueryBuilder):
-    """Builds a query to insert one or more columns into a table."""
-
-    def build(self, name: str, columns, list) -> SQLCommand:
-
-        command = SQLCommand(
-            name='add_columns',
-            description="Adding column(s) to {name}".format(name=name),
-            cmd=sql.SQL("ALTER TABLE {table} {columns}".format(
-                table=sql.Identifier(name),
-                columns=sql.Identifier(sql.SQL(", ").join(
-                    sql.SQL("ADD COLUMN IF NOT EXISTS\
-                            {column} {datatype}".format(
-                        column=name,
-                        datatype=datatype)
-                        for name, datatype in columns.items())
-                )
-                )
-            )
-            )
+                name=name),
+            cmd=sql.SQL("SELECT TRUE FROM information_schema.tables\
+                WHERE table_name = {}").format(
+                sql.Placeholder()),
+            params=tuple((name,))
         )
 
         return command
 
 
-# -----------------------------------------------------------------------------#
+# --------------------------------------------------------------------------- #
 class ColumnExists(QueryBuilder):
     """Builds a query to insert one or more columns into a table."""
 
-    def build(self, name: str, column: str) -> SQLCommand:
+    def build(self, name: str, table: str, schema: str = 'PUBLIC')\
+            -> SQLCommand:
 
         command = SQLCommand(
-            name='add_columns',
-            description="Adding column(s) to {name}".format(name=name),
+            name='column_exists',
+            description="Check if column {} exist on table {}".format(
+                name, table),
             cmd=sql.SQL("SELECT EXISTS (SELECT 1 \
             FROM information_schema.columns \
-            WHERE table_name = {table} AND column_name = {column});".format(
-                table=sql.Placeholder(),
-                column=sql.Placeholder())
-            ),
-            params=(name, column,)
+            WHERE table_schema = {} AND table_name = {} AND \
+                column_name = {});".format(
+                sql.Placeholder(),
+                sql.Placeholder(),
+                sql.Placeholder())),
+            params=tuple((schema, table, name,))
         )
 
         return command
 
 
-# -----------------------------------------------------------------------------#
-class ColumnRemover(QueryBuilder):
-    """Builds a query to remove one or more columns from a table."""
-
-    def build(self, name: str, columns, list) -> SQLCommand:
-
-        command = SQLCommand(
-            name="column_remove",
-            description="Column Remover",
-            cmd=sql.SQL("ALTER TABLE {table} {cols}; ").format(
-                table=sql.Identifier(name),
-                cols=sql.SQL(", ").join(
-                    sql.Identifier(
-                        sql.SQL("DROP COLUMN {c}").format(c=c)
-                        for c in columns))))
-
-        return command
-
-
-# -----------------------------------------------------------------------------#
+# --------------------------------------------------------------------------- #
 class DropTable(QueryBuilder):
 
-    def build(self, name: str) -> SQLCommand:
+    def build(self, name: str, cascade: bool = False) -> SQLCommand:
+
+        if cascade:
+            cmd = sql.SQL("DROP TABLE IF EXISTS {} CASCADE;").format(
+                sql.Identifier(name))
+        else:
+            cmd = sql.SQL("DROP TABLE IF EXISTS {};").format(
+                sql.Identifier(name))
 
         command = SQLCommand(
             name="drop_table",
             description="Drop {} table if it exists.".format(name),
-            cmd=sql.SQL("DROP TABLE IF EXISTS {};").format(
-                sql.Identifier(name)))
+            cmd=cmd)
+
+        return command
+
+# =========================================================================== #
+#                              REPOSITORY                                     #
+# =========================================================================== #
+# --------------------------------------------------------------------------- #
+#                            ARTIFACT TABLE                                   #
+# --------------------------------------------------------------------------- #
+
+
+class CreateArtifactTable(QueryBuilder):
+    """Generates SQL to create the Artifact table."""
+
+    def build(self) -> SQLCommand:
+        command = SQLCommand(
+            name="artifact",
+            description="Create artifact table.",
+            cmd=sql.SQL("""
+                CREATE TABLE IF NOT EXISTS artifact (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY,
+                    name VARCHAR(64) UNIQUE NOT NULL,
+                    version INTEGER,
+                    description VARCHAR(256),
+                    creator VARCHAR(128),
+                    maintainer VARCHAR(128),
+                    webpage VARCHAR(255),
+                    uri VARCHAR(255),
+                    uri_type VARCHAR(32),
+                    media_type VARCHAR(32),
+                    frequency VARCHAR(32),
+                    lifecycle INTEGER,
+                    created TIMESTAMP WITH TIME ZONE NOT NULL
+                        DEFAULT CURRENT_TIMESTAMP,
+                    updated TIMESTAMP,
+                    extracted TIMESTAMP
+                );"""
+                        )
+        )
+        return command
+
+# --------------------------------------------------------------------------- #
+#                          CREATE ENTITY TABLE                                #
+# --------------------------------------------------------------------------- #
+
+
+class CreateEntityTable(QueryBuilder):
+    """Generates SQL to create the Entity table."""
+
+    def build(self) -> SQLCommand:
+        command = SQLCommand(
+            name="entity",
+            description="Create entity table.",
+            cmd=sql.SQL("""
+                CREATE TABLE IF NOT EXISTS feature (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY,
+                    name VARCHAR(64) UNIQUE NOT NULL,
+                    version INTEGER,
+                    description VARCHAR(256),
+                    kind VARCHAR(32) NOT NULL,
+                    datatype VARCHAR(32) NOT NULL,
+                    da_samples INTEGER,
+                    uri VARCHAR(255),
+                    uri_type VARCHAR(32),
+                    colname VARCHAR(128),
+                    media_type VARCHAR(32),
+                    created TIMESTAMP WITH TIME ZONE NOT NULL
+                        DEFAULT CURRENT_TIMESTAMP,
+                    updated TIMESTAMP
+                );"""
+                        )
+        )
+        return command
+# --------------------------------------------------------------------------- #
+#                          CREATE FEATURE TABLE                               #
+# --------------------------------------------------------------------------- #
+
+
+class CreateFeatureTable(QueryBuilder):
+    """Generates SQL to create the Artifact table."""
+
+    def build(self) -> SQLCommand:
+        command = SQLCommand(
+            name="feature",
+            description="Create feature table.",
+            cmd=sql.SQL("""
+                CREATE TABLE IF NOT EXISTS feature (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY,
+                    name VARCHAR(64) UNIQUE NOT NULL,
+                    version INTEGER,
+                    description VARCHAR(256),
+                    entity_id INTEGER REFERENCES entity (id),
+                    kind VARCHAR(32) NOT NULL,
+                    datatype VARCHAR(32) NOT NULL,
+                    da_samples INTEGER,
+                    dan_min FLOAT,
+                    dan_max FLOAT,
+                    dan_q1 FLOAT,
+                    dan_mean FLOAT,
+                    dan_median FLOAT,
+                    dan_q3 FLOAT,
+                    dan_var FLOAT,
+                    dan_sd FLOAT,
+                    dan_skew FLOAT,
+                    dan_kurtosis FLOAT,
+                    dan_num_null INTEGER,
+                    dan_pct_null FLOAT GENERATED ALWAYS AS
+                        (dan_num_null / da_samples * 100),
+                    dan_num_inf INTEGER,
+                    dan_pct_inf FLOAT GENERATED ALWAYS AS
+                        (dan_num_inf / da_samples * 100),
+                    dan_num_zero INTEGER,
+                    dan_pct_zero FLOAT GENERATED ALWAYS AS
+                        (dan_num_zero / da_samples * 100),
+                    dac_num_unique INTEGER,
+                    dac_pct_unique FLOAT GENERATED ALWAYS AS
+                        (dan_num_unique / da_samples * 100),
+                    dac_rank1 VARCHAR(256),
+                    dac_rank1_freq INTEGER,
+                    dac_rank1_pct FLOAT GENERATED ALWAYS AS
+                        (dac_rank1_freq / da_samples * 100),
+                    uri VARCHAR(255),
+                    uri_type VARCHAR(32),
+                    colname VARCHAR(128),
+                    media_type VARCHAR(32),
+                    created TIMESTAMP WITH TIME ZONE NOT NULL
+                        DEFAULT CURRENT_TIMESTAMP,
+                    updated TIMESTAMP
+                );"""
+                        )
+        )
+        return command
+
+# --------------------------------------------------------------------------- #
+#                        CREATE PIPELINE TABLE                                #
+# --------------------------------------------------------------------------- #
+
+
+class CreatePipelineTable(QueryBuilder):
+    """Generates SQL to create the Parameter table."""
+
+    def build(self) -> SQLCommand:
+        command = SQLCommand(
+            name="pipeline",
+            description="Create pipeline table.",
+            cmd=sql.SQL("""
+                CREATE TABLE IF NOT EXISTS pipeline (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY,
+                    name VARCHAR(64) UNIQUE NOT NULL,
+                    description VARCHAR(256),
+                    return_code INTEGER,
+                    return_value VARCHAR(64),
+                    created TIMESTAMP WITH TIME ZONE NOT NULL
+                        DEFAULT CURRENT_TIMESTAMP,
+                    updated TIMESTAMP,
+                    executed TIMESTAMP,
+                );"""
+                        )
+        )
+        return command
+
+# --------------------------------------------------------------------------- #
+#                           CREATE EVENT TABLE                                #
+# --------------------------------------------------------------------------- #
+
+
+class CreateEventTable(QueryBuilder):
+    """Generates SQL to create the EVENT table."""
+
+    def build(self) -> SQLCommand:
+        command = SQLCommand(
+            name="event",
+            description="Create event table.",
+            cmd=sql.SQL("""
+                CREATE TABLE IF NOT EXISTS event (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY,
+                    name VARCHAR(64) UNIQUE NOT NULL,
+                    description VARCHAR(256),
+                    input_id INTEGER REFERENCES artifact (id),
+                    output_id INTEGER REFERENCES artifact (id),
+                    pipeline_id INTEGER REFERENCES pipeline (id),
+                    return_code INTEGER,
+                    return_value VARCHAR(64),
+                    created TIMESTAMP WITH TIME ZONE NOT NULL
+                        DEFAULT CURRENT_TIMESTAMP,
+                    start TIMESTAMP,
+                    end TIMESTAMP,
+                );"""
+                        )
+        )
+        return command
+
+
+# --------------------------------------------------------------------------- #
+#                        CREATE PARAMETER TABLE                               #
+# --------------------------------------------------------------------------- #
+class CreateParameterTable(QueryBuilder):
+    """Generates SQL to create the Parameter table."""
+
+    def build(self) -> SQLCommand:
+        command = SQLCommand(
+            name="parameter",
+            description="Create parameter table.",
+            cmd=sql.SQL("""
+                CREATE TABLE IF NOT EXISTS step (
+                    id INTEGER GENERATED BY DEFAULT AS IDENTITY,
+                    name VARCHAR(64) UNIQUE NOT NULL,
+                    description VARCHAR(256),
+                    numeric_value FLOAT,
+                    string_value VARCHAR(32),
+                    algorithm VARCHAR(64),
+                    event_id INTEGER REFERENCES event (id),
+                    created TIMESTAMP WITH TIME ZONE NOT NULL
+                        DEFAULT CURRENT_TIMESTAMP,
+                    updated TIMESTAMP,
+                    executed TIMESTAMP,
+                );"""
+                        )
+        )
+        return command
+
+
+# --------------------------------------------------------------------------- #
+#                                 SELECT                                      #
+# --------------------------------------------------------------------------- #
+class Select(QueryBuilder):
+    """Generates SQL to support basic queries."""
+
+    def _validate(self, table: str, columns: list = None,
+                  where_key: str = None,
+                  where_value: Union[str, int, float] = None) -> SQLCommand:
+
+        if (where_key and where_value) !=\
+                (where_key or where_value):
+            raise ValueError("where values not completely specified.")
+
+    def _build_cmd(self, table: str, columns: list = None) -> SQLCommand:
+
+        return sql.SQL("SELECT {} FROM {}").format(
+            sql.SQL(", ").join(map(sql.Identifier, columns)),
+            sql.Identifier(table))
+
+    def _build_where_cmd(self, table: str, columns: list = None,
+                         where_key: str = None,
+                         where_value: Union[str, int, float] = None)\
+            -> SQLCommand:
+
+        return sql.SQL("SELECT {} FROM {} WHERE {} = {} ").format(
+            sql.SQL(", ").join(map(sql.Identifier, columns)),
+            sql.Identifier(table),
+            sql.Identifier(where_key),
+            sql.Identifier(where_value))
+
+    def build(self, table: str, columns: list = None, where_key: str = None,
+              where_value: Union[str, int, float] = None) -> SQLCommand:
+
+        self._validate(table, columns, where_key, where_value)
+
+        columns = columns if columns is not None else ['*']
+
+        if where_key and where_value:
+            cmd = self._build_where_cmd(table, columns, where_key, where_value)
+        else:
+            cmd = self._build_cmd(table, columns)
+
+        command = SQLCommand(
+            name="select",
+            description="Select from {}.".format(table),
+            cmd=cmd)
+
+        return command
+
+# --------------------------------------------------------------------------- #
+#                                 INSERT                                      #
+# --------------------------------------------------------------------------- #
+
+
+class Insert(QueryBuilder):
+    """Generates SQL to support insert commands."""
+
+    def build(self, table: str, columns: list, values: list) -> SQLCommand:
+
+        if len(columns != len(values)):
+            raise ValueError(
+                "Number of columns doesn't match number of values")
+
+        command = SQLCommand(
+            name='insert',
+            description="Insert into {} table".format(table),
+            cmd=sql.SQL("INSERT into {} ({}) values ({})").format(
+                sql.Identifier(table),
+                sql.SQL(', ').join(map(sql.Identifier, columns)),
+                sql.SQL(', ').join(sql.Placeholder() * len(columns))),
+            params=tuple((values,))
+        )
 
         return command
 
 
-# -----------------------------------------------------------------------------#
-class SimpleQuery(QueryBuilder):
+# --------------------------------------------------------------------------- #
+#                                 UPDATE                                      #
+# --------------------------------------------------------------------------- #
+class Update(QueryBuilder):
+    """Generates SQL to support single value update commands."""
 
-    def build(self, name: str, tablename: str, schema: str, columns: list,
-              keys: list, comparators: list, operators: list,
-              values: list) -> SQLCommand:
+    def build(self, table: str, column: list, value: list, where_key: str,
+              where_value=Union[str, float, int]) -> SQLCommand:
 
-        # Validate to ensure keys, operators, and values are same length
-        length = len(keys)
-        if any(len(element) != length for element in
-               [keys, comparators, operators, values]):
-            raise ValueError(
-                "key, operator, and values must be equal length lists.")
-
-        # Add an empty character to end of operators so that we don't
-        # have to deal with the 1- problem
-        operators += ""
-
-        # Create a list of where clauses
-        conditions = {}
-        for key, comparator, operator in \
-                zip(keys, comparators, operators):
-            condition = sql.SQL("{key} {compare} {value} {oper}").format(
-                key=sql.Identifier(key),
-                compare=sql.Identifier(comparator),
-                value=sql.Placeholder(),
-                oper=sql.Identifier(operator))
-            conditions.append(condition)
-
-        # Merge the list of conditions into a single string.
-        where_clause = sql.SQL("WHERE {clause}").format(
-            clause=sql.SQL(" ").join(map(sql.Identifer, conditions))
+        command = SQLCommand(
+            name='update',
+            description="Update {} table".format(table),
+            cmd=sql.SQL("UPDATE {} SET {} = {} WHERE {} = {}").format(
+                sql.Identifier(table),
+                sql.Identifier(column),
+                sql.Placeholder(),
+                sql.Identifier(where_key),
+                sql.Placeholder()),
+            params=tuple((value, where_value,))
         )
 
-        # Not sure if this will work.
-        query = sql.SQL("SELECT {fields} FROM {schema}.{table} {where}".format(
-            fields=sql.SQL(",").join(map(sql.Identifier(columns))),
-            schema=sql.Identifier(schema),
-            table=sql.Identifier(tablename),
-            where=sql.Identifier(where_clause)))
+        return command
 
-        # Let's pack it up and see what we have.
+# --------------------------------------------------------------------------- #
+#                                 UPDATE                                      #
+# --------------------------------------------------------------------------- #
+
+
+class Delete(QueryBuilder):
+    """Generates SQL to support basic delete commands."""
+
+    def build(self, table: str, where_key: str,
+              where_value=Union[str, float, int]) -> SQLCommand:
+
         command = SQLCommand(
-            NAME='simple_query',
-            description='Simple Query on {} table'.format(tablename),
-            cmd=query,
-            params=tuple(values))
+            name='delete',
+            description="Delete from {} table".format(table),
+            cmd=sql.SQL("DELETE FROM {} WHERE {} = {}").format(
+                sql.Identifier(table),
+                sql.Identifier(where_key),
+                sql.Placeholder()),
+            params=tuple((where_value,))
+        )
 
         return command
