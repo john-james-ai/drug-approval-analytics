@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 28th 2021, 8:57:51 pm                            #
-# Modified : Thursday, July 29th 2021, 6:40:05 am                             #
+# Modified : Thursday, July 29th 2021, 3:10:17 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -41,18 +41,18 @@ class UserAdminTests:
             self._ta.drop(name)
 
         # Delete all tables in testdb
-        if self._dba.exists(credentials['dbname']):
+        if self._dba.exists(credentials.dbname):
             self._ta = TableAdmin(credentials)
             for name, command in operations_tables.items():
                 self._ta.drop(name)
 
         # Drop test user
         self._useradmin = UserAdmin(dba_credentials)
-        self._useradmin.drop(credentials['user'])
+        self._useradmin.drop(credentials.user)
 
         # Drop test database
         self._dba = DBAdmin(dba_credentials)
-        self._dba.drop(credentials['dbname'])
+        self._dba.drop(credentials.dbname)
 
     def __init__(self, credentials):
         start(self)
@@ -62,14 +62,14 @@ class UserAdminTests:
     def test_create(self, credentials):
         self._useradmin.create(credentials, True)
         assert self._useradmin.exists(
-            credentials['user']), "User not created."
+            credentials.user), "User not created."
 
     def test_drop(self, name):
         self._useradmin.drop(name)
         assert not self._useradmin.exists(name), "User not dropped."
 
     def test_wrapup(self, name):
-        self._dba.drop(self._credentials['dbname'])
+        self._dba.drop(self._credentials.dbname)
         self._useradmin.drop(name)
         end(self)
 
@@ -82,8 +82,8 @@ class DBAdminTests:
         self._ua = UserAdmin(dba_credentials)
         self._ua.create(credentials, create_db=True)
         self._dba = DBAdmin(credentials)
-        if self._dba.exists(credentials['dbname']):
-            self._dba.drop(credentials['dbname'])
+        if self._dba.exists(credentials.dbname):
+            self._dba.drop(credentials.dbname)
 
     def test_create(self, name):
         self._dba.create(name)
@@ -149,7 +149,7 @@ class BackupRestoreTests:
     def test_restore(self, credentials, filepath):
         self._dba.restore(credentials, filepath)
         assert self._dba.exists(
-            credentials['dbname']), "Database was not restored."
+            credentials.dbname), "Database was not restored."
 
 
 def main():

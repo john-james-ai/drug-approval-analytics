@@ -12,13 +12,14 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:23:26 pm                               #
-# Modified : Thursday, July 29th 2021, 6:00:12 am                             #
+# Modified : Thursday, July 29th 2021, 7:46:04 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
 """Postgres database administration, access and connection pools. """
+from abc import ABC, abstractmethod
 import logging
 from typing import Union
 from subprocess import Popen, PIPE
@@ -27,7 +28,11 @@ from psycopg2 import pool
 import numpy as np
 import pandas as pd
 from datetime import datetime
-from abc import ABC, abstractmethod
+
+
+from sqlalchemy import create_engine
+from sqlalchemy.ext.declarative import declarative_base, ConcreteBase
+from sqlalchemy.orm import sessionmaker
 
 from ..utils.logger import exception_handler
 from .sqlgen import CreateUser, DropUser, UserExists, SQLCommand
@@ -37,6 +42,33 @@ from .sqlgen import CreateDatabase, DropDatabase, DatabaseRename
 from .sqlgen import GrantPrivileges, DatabaseExists, DatabaseStats
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
+Base = declarative_base()
+ConcreteBase = ConcreteBase
+
+
+class ORMDatabase:
+    """Connects and established a session maker to the Sqlalchemy Database."""
+
+    def __init__(self, credentials):
+        self._credentials = credentials
+        self._database_uri = f'postgresql://'\
+            f'{credentials.user}:{credentials.password}' \
+            f'@{credentials.host}:{credentials.port}/'
+
+        self._database = create_engine(
+            f'{self._database_uri}{self._credentials.dbname}')
+
+    def reset(self):
+        Base.metadata.clear()
+        Base.metadata.create_all(self._database, checkfirst=False)
+
+    @property
+    def database(self):
+        return self._database
+
+    @property
+    def session(self):
+        return sessionmaker(self._database)
 
 # --------------------------------------------------------------------------- #
 #                              CONNECTION POOL                                #
@@ -53,7 +85,7 @@ class ConnectionPool:
         ConnectionPool.__connection_pool = pool.SimpleConnectionPool(
             2, 10, **credentials)
         logger.info("Initialized connection pool for {} database.".format(
-            credentials['dbname']))
+            credentials.dbname))
 
     @staticmethod
     def get_connection():
@@ -74,10 +106,14 @@ class ConnectionPool:
     def close_all_connections():
         ConnectionPool.__connection_pool.closeall()
 
+# --------------------------------------------------------------------------- #
+#                      SQLALCHEMY DATABASE ENGINE                             #
+# --------------------------------------------------------------------------- #
+# --------------------------------------------------------------------------- #
+#                       PSYCOPG2 DATABASE ENGINE                              #
+# --------------------------------------------------------------------------- #
 
-# --------------------------------------------------------------------------- #
-#                            DATABASE ENGINE                                  #
-# --------------------------------------------------------------------------- #
+
 class Engine:
     """Executes a series of SQLCommand objects."""
 
@@ -286,11 +322,11 @@ class DBAdmin(Admin):
 
         command = ['pg_dump',
                    '--dbname=postgresql://{}:{}@{}:{}/{}'.format(
-                       credentials['user'],
-                       credentials['password'],
-                       credentials['host'],
-                       credentials['port'],
-                       credentials['dbname']),
+                       credentials.user,
+                       credentials.password,
+                       credentials.host,
+                       credentials.port,
+                       credentials.dbname),
                    '-Fc -f',
                    filepath,
                    '-v']
@@ -298,7 +334,7 @@ class DBAdmin(Admin):
         self._run_process(command)
 
         logger.info("Executed BACKUP on the {} database".format(
-            credentials['dbname']))
+            credentials.dbname))
 
     @exception_handler()
     def restore(self, credentials: dict, filepath: str) -> None:
@@ -306,11 +342,11 @@ class DBAdmin(Admin):
         command = ['pg_restore',
                    '--no-owner',
                    '--dbname=postgresql://{}:{}@{}:{}/{}'.format(
-                       credentials['user'],
-                       credentials['password'],
-                       credentials['host'],
-                       credentials['port'],
-                       credentials['dbname']),
+                       credentials.user,
+                       credentials.password,
+                       credentials.host,
+                       credentials.port,
+                       credentials.dbname),
                    '-v',
                    filepath]
 
@@ -322,12 +358,12 @@ class DBAdmin(Admin):
     def load(self, credentials: dict, filepath: str) -> None:
 
         command = 'pg_restore --no-owner -d {} {}'.format(
-            credentials['dbname'], filepath)
+            credentials.dbname, filepath)
 
         self._run_process(command)
 
         logger.info("Executed RESTORE on the {} database".format(
-            credentials['dbname']))
+            credentials.dbname))
 
     @exception_handler()
     def _run_process(self, command):
@@ -372,7 +408,7 @@ class TableAdmin(Admin):
     @exception_handler()
     def exists(self, name: str) -> None:
         query = TableExists()
-        command = query.build(name, self._credentials['dbname'])
+        command = query.build(name, self._credentials.dbname)
         return self._engine.execute_query(name, command)
 
     @exception_handler()

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 1:39:12 pm                               #
-# Modified : Saturday, July 24th 2021, 3:56:37 am                             #
+# Modified : Thursday, July 29th 2021, 3:10:17 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -36,7 +36,7 @@ class DBCon:
         DBCon.__connection_pool = pool.SimpleConnectionPool(
             2, 10, **credentials)
         logger.info("Initialized connection pool for {} database.".format(
-            credentials['dbname']))
+            credentials.dbname))
 
     @exception_handler()
     @staticmethod

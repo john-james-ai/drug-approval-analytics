@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 1:39:19 pm                               #
-# Modified : Saturday, July 24th 2021, 3:56:38 am                             #
+# Modified : Thursday, July 29th 2021, 3:10:52 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -63,7 +63,7 @@ class DBAdmin:
         cur.execute("DROP DATABASE IF EXISTS {} ;".format(dbname))
         cur.execute("CREATE DATABASE {} ;".format(dbname))
         cur.execute("GRANT ALL PRIVILEGES ON DATABASE {} TO {} ;".format(
-            dbname, credentials['user']))
+            dbname, credentials.user))
 
         # Close the cursor and commit the changes.
         cur.close()
@@ -174,11 +174,11 @@ class DBAdmin:
         process = Popen(
             ['pg_dump',
              '--dbname=postgresql://{}:{}@{}:{}/{}'.format(
-                 credentials['user'],
-                 credentials['password'],
-                 credentials['host'],
-                 credentials['port'],
-                 credentials['dbname']),
+                 credentials.user,
+                 credentials.password,
+                 credentials.host,
+                 credentials.port,
+                 credentials.dbname),
              '-f', backup_filepath],
             stdout=PIPE
         )

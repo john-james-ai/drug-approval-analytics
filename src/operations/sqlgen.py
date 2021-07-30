@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Thursday, July 29th 2021, 6:20:14 am                             #
+# Modified : Thursday, July 29th 2021, 3:10:40 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -57,20 +57,20 @@ class CreateUser(QueryBuilder):
 
         if create_db:
             description = "CREATE USER {} WITH PASSWORD {} CREATEDB;".format(
-                credentials['user'], '*****')
+                credentials.user, '*****')
             cmd = sql.SQL("CREATE USER {} WITH PASSWORD {} CREATEDB;").format(
-                sql.Identifier(credentials['user']),
+                sql.Identifier(credentials.user),
                 sql.Placeholder())
         else:
             description = "CREATE USER {} WITH PASSWORD {} NOCREATEDB;".format(
-                credentials['user'], '*****')
+                credentials.user, '*****')
             cmd = sql.SQL("CREATE USER {} WITH PASSWORD {} NOCREATEDB;")\
-                .format(sql.Identifier(credentials['user']),
+                .format(sql.Identifier(credentials.user),
                         sql.Placeholder())
         command = \
             SQLCommand(
                 name="create_user", description=description, cmd=cmd,
-                params=(credentials['password'],))
+                params=(credentials.password,))
 
         return command
 

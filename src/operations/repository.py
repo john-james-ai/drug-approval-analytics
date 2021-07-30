@@ -12,174 +12,406 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 1:25:36 pm                            #
-# Modified : Saturday, July 24th 2021, 3:56:37 am                             #
+# Modified : Thursday, July 29th 2021, 9:16:00 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
-"""Repository for pipeline events
+"""Repository for artifacts and executables
 
-This module defines the repository for pipeline events and consists of:
+This module defines the repository for artifacts and executables:
 
-    - RepoSetup: Configures the Repository database.
-    - RepoDBAdmin: Repository database administration
-    - RepoDBAccess: Repository database access object.
-    - Repository: Repository class interface used by the Pipeline
+    - Repository: Base class for the following subclasses.
+    - ArtifactRepo: DataSource, Dataset, Entity, and Feature artifacts.
+    - StepRepo: Repository database administration
+    - PipelineRepo: Repository database access object.
+    - EventRepo: Repository class interface used by the Pipeline
 
 
 """
 from abc import ABC, abstractmethod
-from uuid import UUID
-import pandas as pd
+from typing import Union, List
+
+from .core import Artifact, DataSource, Entity, Feature
+from .core import Executable, Event, Pipeline, Step
+
 
 # --------------------------------------------------------------------------- #
-
-
-class RepositorySetup():
-    """ Class the creates the Repository database.
-
-    The repository is a one-table database, the schema for which is defined
-    in the database configuration file.
+#                              REPOSITORY                                     #
+# --------------------------------------------------------------------------- #
+class Repository(ABC):
+    """Base class for Repository subclasses.
 
     Arguments:
-        configfilepath (str): Location of the Repository configuration file.
-
-    """
-
-    configfile = '../data/metadata/repository.csv'
-
-    def __init__(self) -> None:
-        self._configfile = RepoSetup.configfile
-
-    def execute(self) -> None:
-        """Creates the DataElements table."""
-
-        df = pd.read_csv(self._configfile)
-        config = df.to_dict('index')
-        return config
-
-
-class Repositories:
-    """Repository for Pipeline Event objects.
-
-    Arguments:
-        connection: PipelineDatabaseAccessObject.connection
+        database: ORMDatabase object
 
     """
 
     table = 'events'
 
-    def __init__(self, connection):
-        super(Events, self).__init__(connection)
+    def __init__(self, database):
+        self._database = database.database
+        self._session = database.session()
 
-    def add(self, event: Event) -> None:
-        self._connection.add(Events.table, event)
+    @abstractmethod
+    def add(self, **Kwargs) -> int:
+        pass
 
-    def get(self, name: str) -> Event:
-        return self._connection.get(Events.table, name)
+    @abstractmethod
+    def add_all(self, **Kwargs) -> int:
+        pass
 
+    @abstractmethod
+    def get_by_id(self, **Kwargs) -> Union[
+            Artifact, DataSource, Entity, Feature,
+            Executable, Event, Pipeline, Step]:
+        pass
+
+    @abstractmethod
+    def get_by_name(self, **kwargs) -> Union[
+            Artifact, DataSource, Entity, Feature,
+            Executable, Event, Pipeline, Step]:
+        pass
+
+    @abstractmethod
     def get_all(self) -> list:
-        return self._connection.get_all(Events.table)
+        pass
 
-    def update(self, event: Event) -> None:
-        self._connection.update(Events.table, event)
-
+    @abstractmethod
     def delete(self, name: str) -> None:
-        self._connection.delete(Events.table, name)
+        pass
 
+    @abstractmethod
     def delete_all(self) -> None:
-        self._connection.delete_all(Events.table)
+        pass
 
+    def print_all(self) -> None:
+        print(self.get_all())
 
+# --------------------------------------------------------------------------- #
+#                         ARTIFACT REPOSITORY                                 #
 # --------------------------------------------------------------------------- #
 
 
-class RepoDBAdmin:
+class ArtifactRepo(Repository):
     """Database administration for the repository database."""
 
-    dbname = "repository"
+    def add(self, artifact: Artifact) -> int:
+        self._session.add(artifact)
+        self._session.flush()
+        return artifact.id
 
-    def __init__(self, name: str, engine: DBCon) -> None:
-        self._name = RepoDBAdmin.dbname if name is None else name
-        self._engine = engine
+    def add_all(self, artifacts: List[Artifact]) -> List[int]:
+        ids = []
+        for artifact in artifacts:
+            ids.append(self.add(artifact))
+        self._session.commit()
+        return ids
 
-    @exception_handler()
-    def create_database(self) -> str:
-        """Creates the repository database and returns the database name."""
-        return self._dba.create_database(self._name)
+    def get_by_id(self, artifact_id: int) -> Artifact:
+        artifact = self._session.query(Artifact).filter(
+            Artifact.id == artifact_id).all()
+        return artifact
 
-    @exception_handler()
-    def drop_database(self) -> str:
-        """Creates the repository database and returns the database name."""
-        self._dba.drop_database(self._name)
+    def get_by_name(self, artifact_name: str) -> Artifact:
+        artifact = self._session.query(Artifact).filter(
+            Artifact.name == artifact_name).all()
+        return artifact
 
-    @exception_handler()
-    def create_table(self, table: str, sql_query: str) -> None:
-        conn = self._engine.initialize(
-            repository_config).get_connection()
-        cursor = conn.cursor()
-        cursor.execute(sql_query)
-        cursor.close()
-        conn.commit()
-        conn.close()
+    def get_all(self) -> list:
+        return self._session.query(Artifact).all()
+
+    def delete(self, name: str) -> None:
+        self._session.query(Artifact).filter(Artifact.name == name).delete()
+        self._session.commit()
+
+    def delete_all(self) -> None:
+        self._session.query(Artifact).delete()
+        self._session.commit()
+
+# --------------------------------------------------------------------------- #
+#                        DATASOURCE REPOSITORY                                #
 # --------------------------------------------------------------------------- #
 
 
-class RepoDBAccess(ABC):
-    """Base database access object for the pipeline repository Database."""
+class DataSourceRepo(Repository):
+    """Database administration for the repository database."""
 
-    dbname = "repository"
+    def add(self, datasource: DataSource) -> int:
+        self._session.add(datasource)
+        self._session.flush()
+        return datasource.id
 
-    def __init__(self, engine: DBCon, query_builder) -> None:
-        self._engine = engine
-        self._dbname = RepoDBAccess.dbname
-        self._query_builder = query_builder
-        self._connection = None
+    def add_all(self, datasources: List[DataSource]) -> List[int]:
+        ids = []
+        for datasource in datasources:
+            ids.append(self.add(datasource))
+        self._session.commit()
+        return ids
 
-    @exception_handler()
-    def get_connection(self) -> None:
-        """Establishes a connection to the database."""
+    def get_by_id(self, datasource_id: int) -> DataSource:
+        datasource = self._session.query(DataSource).filter(
+            DataSource.id == datasource_id).all()
+        return datasource
 
-        # Connections will be managed by the client to enforce transaction
-        # over the Pipeline event transaction.
-        self._engine.initialize(repository_config)
-        self._connection = self._engine.get_connection()
-        self._cursor = self._connection.cursor()
+    def get_by_name(self, datasource_name: str) -> DataSource:
+        datasource = self._session.query(DataSource).filter(
+            DataSource.name == datasource_name).all()
+        return datasource
 
-    def list_events(self, stage: str = None) -> pd.DataFrame:
-        if stage:
+    def get_all(self) -> list:
+        return self._session.query(DataSource).all()
 
-    def get_pipeline(self, name: str) -> Pipeline:
-        self._q
+    def delete(self, name: str) -> None:
+        self._session.query(DataSource).filter(
+            DataSource.name == name).delete()
+        self._session.commit()
 
-    def get_event(self, name: str) -> dict:
-        """Returns all components associated with the named pipeline event.
+    def delete_all(self) -> None:
+        self._session.query(DataSource).delete()
+        self._session.commit()
 
-        An event is a hierarchy of objects, including the associated
-        pipeline, the pipeline steps,  and the input and output
-        elements of each pipeline step. Hence, this method returns
-        a dictionary containing each component with names as keys.
 
-        Arguments
-            name (str): The unique name of the event.
-        """
-        return pd.read_sql_query(sql=sql_query, con=self._connection)
-
-    def delete(self, table: str, sql_query: str,
-               parameters: tuple = ()) -> None:
-        self._cursor.execute(sql_query, parameters)
 # --------------------------------------------------------------------------- #
+#                           ENTITY REPOSITORY                                 #
+# --------------------------------------------------------------------------- #
+class EntityRepo(Repository):
+    """Database administration for the repository database."""
+
+    def add(self, entity: Entity) -> int:
+        self._session.add(entity)
+        self._session.flush()
+        return entity.id
+
+    def add_all(self, entities: List[Entity]) -> List[int]:
+        ids = []
+        for entity in entities:
+            ids.append(self.add(entity))
+        self._session.commit()
+        return ids
+
+    def get_by_id(self, entity_id: int) -> Entity:
+        entity = self._session.query(Entity).filter(
+            Entity.id == entity_id).all()
+        return entity
+
+    def get_by_name(self, entity_name: str) -> Entity:
+        entity = self._session.query(Entity).filter(
+            Entity.name == entity_name).all()
+        return entity
+
+    def get_all(self) -> list:
+        return self._session.query(Entity).all()
+
+    def delete(self, name: str) -> None:
+        self._session.query(Entity).filter(Entity.name == name).delete()
+        self._session.commit()
+
+    def delete_all(self) -> None:
+        self._session.query(Entity).delete()
+        self._session.commit()
 
 
-class Event:
-    """Element repository database.
+# --------------------------------------------------------------------------- #
+#                           FEATURE REPOSITORY                                #
+# --------------------------------------------------------------------------- #
+class FeatureRepo(Repository):
+    """Database administration for the repository database."""
 
-    Arguments:
-        dao (RepoDBAcess): Database access object
-    """
+    def add(self, feature: Feature) -> int:
+        self._session.add(feature)
+        self._session.flush()
+        return feature.id
 
-    def __init__(sel, dao: RepoDBAccess, query_builder: QueryBuilder) -> None:
-        self._dao = dao
+    def add_all(self, features: List[Feature]) -> List[int]:
+        ids = []
+        for feature in features:
+            ids.append(self.add(feature))
+        self._session.commit()
+        return ids
 
-    def get(self, event_name: str) -> Element:
+    def get_by_id(self, feature_id: int) -> Feature:
+        feature = self._session.query(Feature).filter(
+            Feature.id == feature_id).all()
+        return feature
+
+    def get_by_name(self, feature_name: str) -> Feature:
+        feature = self._session.query(Feature).filter(
+            Feature.name == feature_name).all()
+        return feature
+
+    def get_all(self) -> list:
+        return self._session.query(Feature).all()
+
+    def delete(self, name: str) -> None:
+        self._session.query(Feature).filter(Feature.name == name).delete()
+        self._session.commit()
+
+    def delete_all(self) -> None:
+        self._session.query(Feature).delete()
+        self._session.commit()
+
+
+# --------------------------------------------------------------------------- #
+#                          EXECUTABLE REPOSITORY                              #
+# --------------------------------------------------------------------------- #
+class ExecutableRepo(Repository):
+    """Database administration for the repository database."""
+
+    def add(self, executable: Executable) -> int:
+        self._session.add(executable)
+        self._session.flush()
+        return executable.id
+
+    def add_all(self, executables: List[Executable]) -> List[int]:
+        ids = []
+        for executable in executables:
+            ids.append(self.add(executable))
+        self._session.commit()
+        return ids
+
+    def get_by_id(self, executable_id: int) -> Executable:
+        executable = self._session.query(Executable).filter(
+            Executable.id == executable_id).all()
+        return executable
+
+    def get_by_name(self, executable_name: str) -> Executable:
+        executable = self._session.query(Executable).filter(
+            Executable.name == executable_name).all()
+        return executable
+
+    def get_all(self) -> list:
+        return self._session.query(Executable).all()
+
+    def delete(self, name: str) -> None:
+        self._session.query(Executable).filter(
+            Executable.name == name).delete()
+        self._session.commit()
+
+    def delete_all(self) -> None:
+        self._session.query(Executable).delete()
+        self._session.commit()
+
+
+# --------------------------------------------------------------------------- #
+#                          EVENT REPOSITORY                                   #
+# --------------------------------------------------------------------------- #
+class EventRepo(Repository):
+    """Database administration for the repository database."""
+
+    def add(self, event: Event) -> int:
+        self._session.add(event)
+        self._session.flush()
+        return event.id
+
+    def add_all(self, events: List[Event]) -> List[int]:
+        ids = []
+        for event in events:
+            ids.append(self.add(event))
+        self._session.commit()
+        return ids
+
+    def get_by_id(self, event_id: int) -> Event:
+        event = self._session.query(Event).filter(
+            Event.id == event_id).all()
+        return event
+
+    def get_by_name(self, event_name: str) -> Event:
+        event = self._session.query(Event).filter(
+            Event.name == event_name).all()
+        return event
+
+    def get_all(self) -> list:
+        return self._session.query(Event).all()
+
+    def delete(self, name: str) -> None:
+        self._session.query(Event).filter(
+            Event.name == name).delete()
+        self._session.commit()
+
+    def delete_all(self) -> None:
+        self._session.query(Event).delete()
+        self._session.commit()
+
+
+# --------------------------------------------------------------------------- #
+#                           PIPELINE REPOSITORY                               #
+# --------------------------------------------------------------------------- #
+class PipelineRepo(Repository):
+    """Database administration for the repository database."""
+
+    def add(self, pipeline: Pipeline) -> int:
+        self._session.add(pipeline)
+        self._session.flush()
+        return pipeline.id
+
+    def add_all(self, pipelines: List[Pipeline]) -> List[int]:
+        ids = []
+        for pipeline in pipelines:
+            ids.append(self.add(pipeline))
+        self._session.commit()
+        return ids
+
+    def get_by_id(self, pipeline_id: int) -> Pipeline:
+        pipeline = self._session.query(Pipeline).filter(
+            Pipeline.id == pipeline_id).all()
+        return pipeline
+
+    def get_by_name(self, pipeline_name: str) -> Pipeline:
+        pipeline = self._session.query(Pipeline).filter(
+            Pipeline.name == pipeline_name).all()
+        return pipeline
+
+    def get_all(self) -> list:
+        return self._session.query(Pipeline).all()
+
+    def delete(self, name: str) -> None:
+        self._session.query(Pipeline).filter(
+            Pipeline.name == name).delete()
+        self._session.commit()
+
+    def delete_all(self) -> None:
+        self._session.query(Pipeline).delete()
+        self._session.commit()
+
+
+# --------------------------------------------------------------------------- #
+#                            STEP REPOSITORY                                  #
+# --------------------------------------------------------------------------- #
+class StepRepo(Repository):
+    """Database administration for the repository database."""
+
+    def add(self, step: Step) -> int:
+        self._session.add(step)
+        self._session.flush()
+        return step.id
+
+    def add_all(self, steps: List[Step]) -> List[int]:
+        ids = []
+        for step in steps:
+            ids.append(self.add(step))
+        self._session.commit()
+        return ids
+
+    def get_by_id(self, step_id: int) -> Step:
+        step = self._session.query(Step).filter(
+            Step.id == step_id).all()
+        return step
+
+    def get_by_name(self, step_name: str) -> Step:
+        step = self._session.query(Step).filter(
+            Step.name == step_name).all()
+        return step
+
+    def get_all(self) -> list:
+        return self._session.query(Step).all()
+
+    def delete(self, name: str) -> None:
+        self._session.query(Step).filter(
+            Step.name == name).delete()
+        self._session.commit()
+
+    def delete_all(self) -> None:
+        self._session.query(Step).delete()
+        self._session.commit()
