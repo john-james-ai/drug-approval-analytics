@@ -12,19 +12,17 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 28th 2021, 8:57:51 pm                            #
-# Modified : Saturday, July 31st 2021, 2:31:30 am                             #
+# Modified : Saturday, July 31st 2021, 3:31:59 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
 # %%
-from datetime import datetime
 import os
 import pytest
-import pandas as pd
 
-from src.operations.database import DBAdmin, DBAccess
+from src.operations.database import DBAdmin
 from src.operations.config import dba_credentials, test_credentials
 from src.operations.sqlgen import CreateArtifactTable
 from tests.test_utils.print import start, end
@@ -94,83 +92,6 @@ class BuildTests:
         end(self)
 
 
-@ pytest.mark.database_access
-class AccessTests:
-
-    def __init__(self, credentials):
-        start(self)
-        self._table = "artifact"
-        self._dao = DBAccess(credentials)
-
-    @announce
-    def test_create(self):
-        dtypes = {"name": str,
-                  "version": str,
-                  "type": str,
-                  "title": str,
-                  "description": str,
-                  "creator": str,
-                  "maintainer": str,
-                  "webpage": str,
-                  "uri": str,
-                  "uri_type": str,
-                  "media_type": str,
-                  "frequency": str,
-                  "coverage": str,
-                  "lifecycle": str}
-
-        # Load datasources from file into nested dictionary.
-        filepath = './data/metadata/datasources.csv'
-        df = pd.read_csv(filepath, index_col=0, dtype=dtypes)
-        sources = df.to_dict(orient='index')
-        # Insert each level 1 dictionary as one row
-        for name, details in sources.items():
-            columns = ['name']
-            values = [name]
-            for column, value in details.items():
-                columns.append(column)
-                values.append(value)
-            self._dao.create(self._table, columns, values)
-
-    @announce
-    def test_read(self):
-        df = self._dao.read(self._table)
-        assert df.shape[0] > 5, "CreateArtifactError: Expected > 5 \
-            samples, observed {}".format(df.shape[0])
-        assert df.shape[1] > 5, "CreateArtifactError: Expected > 5 \
-            features, observed {}".format(df.shape[1])
-
-    @announce
-    def test_update(self):
-        updates = {}
-        updates['version'] = 2
-        updates['description'] = 'test_description'
-        updates['updated'] = datetime.now()
-        # Test conditional updates
-        for idx, column, value in enumerate(updates.items()):
-            self._dao.update(table=self._table, column=column, value=value,
-                             where_key='id', where_value=idx)
-            df = self._dao.read(table=self._table, columns=updates.keys,
-                                where_key='id', where_value=idx)
-            assert df[column] == value, "UpdateArtifactError: Update error."
-
-        # Test unconditional updates
-        self._dao.update(table=self._table, column='version', value=3)
-        df = self._dao.read(table=self._table)
-        assert df['version'].all(
-        ) == 3, "UpdateArtifactError: Unconditional update"
-
-    @announce
-    def test_delete(self):
-        df = self._dao.read(table=self._table)
-        nobs_before = df.shape[0]
-        for i in range(0, 3):
-            self._dao.delete(self._table, where_key='id', where_value=i)
-        df = self._dao.read(table=self._table)
-        assert nobs_before == df.shape[0] + 3, "DeleteArtifactError"
-        end(self)
-
-
 @ pytest.mark.database_backup_restore
 class BackupRestoreTests:
 
@@ -182,12 +103,12 @@ class BackupRestoreTests:
 
     @announce
     def test_backup(self):
-        self.dba.backup(self._credentials, self._filepath)
+        self.dba.backup_database(self._credentials, self._filepath)
         assert os.path.exists(self._filepath), "Backup didn't work"
 
     @announce
     def test_restore(self):
-        self.dba.restore(self._credentials, self._filepath)
+        self.dba.restore_database(self._credentials, self._filepath)
         assert self.dba.exists(
             self._credentials['dbname']), "Database was not restored."
         end(self)
@@ -235,14 +156,6 @@ def test_build(dba_credentials, user_credentials, masterdb, testdb):
     return t.dba
 
 
-def test_access(credentials):
-    t = AccessTests(credentials)
-    t.test_create()
-    t.test_read()
-    t.test_update()
-    t.test_delete()
-
-
 def test_backup_restore(dba, credentials, filepath):
     t = BackupRestoreTests(dba, credentials, filepath)
     t.test_backup()
@@ -266,10 +179,8 @@ def main():
 
     # Build tests
     dba = test_build(dba_credentials, user_credentials, masterdb, testdb)
-    # Access tests
-    test_access(user_credentials)
     # Backup restore tests
-    dba = test_backup_restore(dba_credentials, user_credentials, filepath)
+    dba = test_backup_restore(dba, user_credentials, filepath)
     # Teardown tests
     test_teardown(dba)
 

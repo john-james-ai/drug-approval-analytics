@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Saturday, July 31st 2021, 3:20:58 am                             #
+# Modified : Saturday, July 31st 2021, 4:21:14 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -331,13 +331,11 @@ class CreateArtifactTable(QueryBuilder):
                     type VARCHAR(32),
                     description VARCHAR(256),
                     creator VARCHAR(128),
-                    maintainer VARCHAR(128),
                     webpage VARCHAR(255),
                     uri VARCHAR(255),
                     uri_type VARCHAR(32),
                     media_type VARCHAR(32),
-                    frequency VARCHAR(32),
-                    coverage VARCHAR(64),
+                    frequency VARCHAR(32),                    
                     lifecycle INTEGER,
                     created TIMESTAMP WITH TIME ZONE NOT NULL
                         DEFAULT CURRENT_TIMESTAMP,
