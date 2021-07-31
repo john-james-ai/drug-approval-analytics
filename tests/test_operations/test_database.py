@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 28th 2021, 8:57:51 pm                            #
-# Modified : Saturday, July 31st 2021, 2:00:34 am                             #
+# Modified : Saturday, July 31st 2021, 2:31:30 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -125,8 +125,8 @@ class AccessTests:
         sources = df.to_dict(orient='index')
         # Insert each level 1 dictionary as one row
         for name, details in sources.items():
-            columns = []
-            values = []
+            columns = ['name']
+            values = [name]
             for column, value in details.items():
                 columns.append(column)
                 values.append(value)

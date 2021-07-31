@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Saturday, July 31st 2021, 2:12:56 am                             #
+# Modified : Saturday, July 31st 2021, 3:20:58 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -49,6 +49,7 @@ class SQLCommand:
     """Class that encapsulates a sql command, its name and parameters."""
     name: str
     cmd: sql
+    to_string: bool = field(default=False)
     description: str = field(default=None)
     params: tuple = field(default=())
     executed: datetime = field(default=datetime(1970, 1, 1, 0, 0))
@@ -578,11 +579,10 @@ class Select(QueryBuilder):
 
         return command
 
+
 # --------------------------------------------------------------------------- #
 #                                 INSERT                                      #
 # --------------------------------------------------------------------------- #
-
-
 class Insert(QueryBuilder):
     """Generates SQL to support insert commands."""
 
@@ -594,15 +594,37 @@ class Insert(QueryBuilder):
 
         command = SQLCommand(
             name='insert',
+            to_string=True,
             description="Insert into {} table".format(table),
-            cmd=sql.SQL("INSERT into {} ({}) values ({})").format(
+            cmd=sql.SQL("INSERT into {} ({}) values {}").format(
                 sql.Identifier(table),
-                sql.SQL(', ').join(map(sql.Identifier, columns)),
-                sql.SQL(', ').join(map(sql.Placeholder, values))),
-            params=tuple((values,))
+                sql.SQL(', ').join(map(sql.Identifier, tuple((*columns,)))),
+                sql.SQL(', ').join(sql.Placeholder() * len(columns))),
+            params=tuple((*values,))
         )
 
         return command
+
+# class Insert(QueryBuilder):
+#     """Generates SQL to support insert commands."""
+
+#     def build(self, table: str, columns: list, values: list) -> SQLCommand:
+
+#         if (len(columns) != len(values)):
+#             raise ValueError(
+#                 "Number of columns doesn't match number of values")
+
+#         command = SQLCommand(
+#             name='insert',
+#             description="Insert into {} table".format(table),
+#             cmd=sql.SQL("INSERT into {} ({}) values ({})").format(
+#                 sql.Identifier(table),
+#                 sql.SQL(', ').join(map(sql.Identifier, columns)),
+#                 sql.SQL(', ').join(map(sql.Placeholder, values))),
+#             params=tuple((values,))
+#         )
+
+#         return command
 
 
 # --------------------------------------------------------------------------- #
