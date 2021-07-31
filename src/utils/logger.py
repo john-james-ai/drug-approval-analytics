@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 9:32:12 pm                            #
-# Modified : Friday, July 30th 2021, 2:17:09 pm                               #
+# Modified : Friday, July 30th 2021, 10:49:38 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -121,6 +121,7 @@ def exception_handler(frame_template: str = LOG_FRAME_TPL,
                 # the most recent frame first
                 frames = inspect.getinnerframes(sys.exc_info()[2])
                 for frame_info in reversed(frames):
+                    print("\nPRINTING FRAMES")
                     f_locals = frame_info[0].f_locals
 
                     # if there's a local variable named
@@ -140,6 +141,7 @@ def exception_handler(frame_template: str = LOG_FRAME_TPL,
 
                     # log every local variable of the frame
                     for k, v in f_locals.items():
+                        print("\nPRINTING VARIABLES")
                         logger.error('    %s = %s\n' %
                                      (k, value_to_string(v)))
 

@@ -12,14 +12,13 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:23:26 pm                               #
-# Modified : Friday, July 30th 2021, 4:18:37 pm                               #
+# Modified : Saturday, July 31st 2021, 1:15:57 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
 """Postgres database administration, access and connection pools. """
-from abc import ABC, abstractmethod
 import logging
 from typing import Union
 from subprocess import Popen, PIPE
@@ -33,7 +32,8 @@ from ..utils.logger import exception_handler
 from .sqlgen import CreateUser, DropUser, UserExists, SQLCommand
 from .sqlgen import TableExists, DropTable, ColumnExists
 from .sqlgen import CreateDatabase, DropDatabase, DatabaseRename
-from .sqlgen import GrantPrivileges, DatabaseExists, DatabaseStats
+from .sqlgen import GrantPrivileges, DatabaseExists, RevokePrivileges
+from .sqlgen import Insert, Select, Update, Delete
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 
@@ -88,25 +88,19 @@ class Engine:
     def __init__(self, credentials):
         self._credentials = credentials
 
-    def read_query(self, name: str, command) -> pd.DataFrame:
-        """Uses pandas to read sql and turn a dataframe."""
-        self.bind_connection()
-        df = pd.read_sql(sql=command.cmd,
-                         con=self._connection,
-                         params=command.params)
-        return df
-
     def execute(self, name: str, command) -> \
         Union[int, bool, str, float, datetime, list, pd.DataFrame,
               np.array]:
         """Executes a single sql command on the object."""
 
-        cursor = self.bind_connection()
+        con = self.get_connection()
+        cursor = con.cursor()
 
         response = cursor.execute(command.cmd, command.params)
         command.executed = datetime.now()
 
-        self.release_connection(cursor)
+        cursor.close()
+        self.return_connection(con)
 
         logger.info(
             "{} was completed successfully."
@@ -117,7 +111,8 @@ class Engine:
     def execute_all(self, name: str, command: list) -> None:
         """Executes a series of different SQL command within a transaction."""
 
-        cursor = self.bind_connection()
+        con = self.get_connection()
+        cursor = con.cursor()
 
         responses = []
 
@@ -126,7 +121,8 @@ class Engine:
             command.executed = datetime.now()
             responses.append(response)
 
-        self.release_connection(cursor)
+        cursor.close()
+        self.return_connection(con)
 
         cmds = "\n".join([command.description for command in command])
         logger.info(
@@ -138,12 +134,14 @@ class Engine:
     def execute_many(self, name: str, command) -> None:
         """Executes a single SQL command on a multiple objects."""
 
-        cursor = self.bind_connection()
+        con = self.get_connection()
+        cursor = con.cursor()
 
         response = cursor.executemany(command.cmd, command.params)
         command.executed = datetime.now()
 
-        self.release_connection(cursor)
+        cursor.close()
+        self.return_connection(con)
 
         logger.info(
             "{} was completed successfully."
@@ -156,13 +154,15 @@ class Engine:
               np.array]:
         """Executes a single sql command on the object."""
 
-        cursor = self.bind_connection()
+        con = self.get_connection()
+        cursor = con.cursor()
 
         cursor.execute(command.cmd, command.params)
         response = cursor.fetchall()
         command.executed = datetime.now()
 
-        self.release_connection(cursor)
+        cursor.close()
+        self.return_connection(con)
 
         logger.info(
             "{} was completed successfully."
@@ -170,82 +170,31 @@ class Engine:
 
         return response
 
-    def bind_connection(self):
+    def get_connection(self):
         """Opens connection, sets isolation level, returns the connection."""
 
         ConnectionPool.initialize(self._credentials)
-        self._connection = ConnectionPool.get_connection()
-        self._connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-        cursor = self._connection.cursor()
-        return cursor
+        connection = ConnectionPool.get_connection()
+        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+        return connection
 
-    def release_connection(self, cursor) -> None:
+    def return_connection(self, connection) -> None:
         """Commits and returns the connection to the pool."""
 
-        cursor.close()
-        self._connection.commit()
-        ConnectionPool.return_connection(self._connection)
+        connection.commit()
+        ConnectionPool.return_connection(connection)
 
     def close_all_connections(self) -> None:
         ConnectionPool.close_all_connections()
 
 
 # --------------------------------------------------------------------------- #
-#                           ADMINISTRATION BASE                               #
-# --------------------------------------------------------------------------- #
-class Admin(ABC):
-    """Base class for database and table administration."""
-
-    def __init__(self, credentials: dict) -> None:
-        self._credentials = credentials
-        self._engine = Engine(credentials)
-
-    @abstractmethod
-    def create(self, name: str, *args, **kwargs) -> None:
-        pass
-
-    @abstractmethod
-    def drop(self, name: str) -> None:
-        pass
-
-    @abstractmethod
-    def exists(self, name: str) -> bool:
-        pass
-
-# --------------------------------------------------------------------------- #
-#                           USER ADMINISTRATION                               #
-# --------------------------------------------------------------------------- #
-
-
-class UserAdmin(Admin):
-    """Maintains users and privileges."""
-
-    @exception_handler()
-    def create(self, credentials: dict, create_db: bool = False) \
-            -> None:
-        query = CreateUser()
-        command = query.build(credentials, create_db)
-        return self._engine.execute(command.name, command)
-
-    @exception_handler()
-    def drop(self, name):
-        query = DropUser()
-        command = query.build(name)
-        return self._engine.execute(name, command)
-
-    @exception_handler()
-    def exists(self, name) -> None:
-        query = UserExists()
-        command = query.build(name)
-        return self._engine.execute_query(name, command)[0][0]
-
-# --------------------------------------------------------------------------- #
 #                         DATABASE ADMINISTRATION                             #
 # --------------------------------------------------------------------------- #
+class DBAdmin:
+    """Database administration
 
-
-class DBAdmin(Admin):
-    """Database administration i.e. creating and dropping databases.
+    Provides CRUD support for users, databases and tables.
 
     Arguments
         credentials (dict): Dictionary of authorizing credentials.
@@ -254,39 +203,68 @@ class DBAdmin(Admin):
 
     temp_database = 'tempdb'
 
+    def __init__(self, credentials: dict) -> None:
+        self._credentials = credentials
+        self._engine = Engine(credentials)
+
     @exception_handler()
-    def create(self, name) -> None:
+    def create_user(self, credentials: dict, create_db: bool = False) \
+            -> None:
+        query = CreateUser()
+        command = query.build(credentials, create_db)
+        return self._engine.execute(command.name, command)
+
+    @exception_handler()
+    def drop_user(self, name):
+        query = DropUser()
+        command = query.build(name)
+        return self._engine.execute(name, command)
+
+    @exception_handler()
+    def user_exists(self, name) -> None:
+        query = UserExists()
+        command = query.build(name)
+        return self._engine.execute_query(name, command)[0][0]
+
+    @exception_handler()
+    def create_database(self, name) -> None:
         query = CreateDatabase()
         command = query.build(name)
         self._engine.execute(name, command)
 
     @exception_handler()
-    def exists(self, name) -> bool:
+    def database_exists(self, name) -> bool:
 
         query = DatabaseExists()
         command = query.build(name)
         return self._engine.execute_query(name, command)[0][0]
 
     @exception_handler()
-    def drop(self, name) -> None:
+    def drop_database(self, name) -> None:
         query = DropDatabase()
         command = query.build(name)
         self._engine.execute(name, command)
 
     @exception_handler()
-    def rename(self, name: str, newname: str) -> None:
+    def rename_database(self, name: str, newname: str) -> None:
         query = DatabaseRename()
         command = query.build(name, newname)
         self._engine.execute(name, command)
 
     @exception_handler()
-    def grant(self, name, user) -> None:
+    def grant_database_privileges(self, name, user) -> None:
         query = GrantPrivileges()
         command = query.build(name, user)
         self._engine.execute(name, command)
 
     @exception_handler()
-    def backup(self, credentials: dict, filepath: str) -> None:
+    def revoke_database_privileges(self, name, user) -> None:
+        query = RevokePrivileges()
+        command = query.build(name, user)
+        self._engine.execute(name, command)
+
+    @exception_handler()
+    def backup_database(self, credentials: dict, filepath: str) -> None:
 
         command = ['pg_dump',
                    '--dbname=postgresql://{}:{}@{}:{}/{}'.format(
@@ -305,7 +283,7 @@ class DBAdmin(Admin):
             credentials['dbname']))
 
     @exception_handler()
-    def restore(self, credentials: dict, filepath: str) -> None:
+    def restore_database(self, credentials: dict, filepath: str) -> None:
 
         command = ['pg_restore',
                    '--no-owner',
@@ -323,7 +301,7 @@ class DBAdmin(Admin):
         logger.info("Database restored from {}".format(filepath))
 
     @exception_handler()
-    def load(self, credentials: dict, filepath: str) -> None:
+    def load_database(self, credentials: dict, filepath: str) -> None:
 
         command = 'pg_restore --no-owner -d {} {}'.format(
             credentials['dbname'], filepath)
@@ -348,16 +326,8 @@ class DBAdmin(Admin):
         if int(process.returncode) != 0:
             raise Exception(result)
 
-# --------------------------------------------------------------------------- #
-#                         TABLE ADMINISTRATION                                #
-# --------------------------------------------------------------------------- #
-
-
-class TableAdmin(Admin):
-    """Database table administration."""
-
     @exception_handler()
-    def create(self, name: str, command: SQLCommand) -> None:
+    def create_table(self, name: str, command: SQLCommand) -> None:
         """Creates a table according to the schema defined in the file.
 
         Arguments
@@ -368,13 +338,13 @@ class TableAdmin(Admin):
         self._engine.execute(name, command)
 
     @exception_handler()
-    def drop(self, name: str, cascade: bool = False) -> None:
+    def drop_table(self, name: str, cascade: bool = False) -> None:
         query = DropTable()
         command = query.build(name, cascade)
         return self._engine.execute(name, command)
 
     @exception_handler()
-    def exists(self, name: str, schema: str = 'PUBLIC') -> None:
+    def table_exists(self, name: str, schema: str = 'PUBLIC') -> None:
         query = TableExists()
         command = query.build(name, schema)
         return self._engine.execute_query(name, command)
@@ -392,65 +362,91 @@ class TableAdmin(Admin):
         command = query.build(name, table)
         return self._engine.execute_query(name, command)
 
-
 # --------------------------------------------------------------------------- #
 #                      DATABASE ACCESS OBJECT                                 #
 # --------------------------------------------------------------------------- #
 
 
-class DAO:
+class DBAccess:
     """Database Access Object."""
 
     def __init__(self, credentials: dict) -> None:
         self._credentials = credentials
-        self._connection = ConnectionPool.initialize(credentials)
+        self._engine = Engine(credentials)
 
-    def create(self, tablename: str, columns: list, values: list) -> None:
+    def _get_connection(self):
+        """Returns a connection createe by the database engine."""
+        return self._engine.get_connection()
+
+    def _return_connection(self, connection):
+        """Returns a connection back to the connection pool."""
+        self._engine.return_connection(connection)
+
+    def _execute(self, name: str, command: SQLCommand) -> Union[None, int]:
+        self._engine.execute(name, command)
+
+    def create(self, table: str, columns: list, values: list) -> None:
         """Inserts a row into the designated table
 
         Arguments
-            tablename (str): Name of the table into which insertion occurs.
+            table (str): Name of the table into which insertion occurs.
             columns (list): List of string names of columns
             values (list): List of values inserted into the above.
         """
-        pass
+        query = Insert()
+        command = query.build(table, columns, values)
+        return self._execute(table, command)
 
-    def read(self, tablename, command) -> pd.DataFrame:
-        """Reads data from the named table using the command.
+    def read(self, table: str, columns: list = None, where_key: str = None,
+             where_value: Union[str, int, float] = None) -> pd.DataFrame:
+        """Uses pandas to read data and return in DataFrame format.
 
         Arguments
-            tablename (str): Name of the table into which insertion occurs.
-            command (SQLCommand): An SQLCommand object
+            table (str): Name of the table into which insertion occurs.
+            columns (list): The list of columns to read
+            where_key (str): The name of the select column
+            where_value  (str, int, float): The value for the select
+                column.
         """
-        pass
+        query = Select()
+        command = query.build(table, columns, where_key, where_value)
 
-    def update(self, tablename: str, columns: list, values: list,
-               where: dict) -> None:
+        con = self._get_connection()
+
+        df = pd.read_sql(command.cmd, con)
+
+        self._return_connection(con)
+
+        return df
+
+    def update(self, table: str, column: str, value: str, where_key: str,
+               where_value=Union[str, float, int]) -> None:
         """Updates a row into the designated table where key = value.
 
         Arguments
-            tablename (str): Name of the table into which insertion occurs.
-            columns (list): List of string names of columns to be updated.
-            values (list): List of values to update into the above.
-            where (dict): Dictionary of key, value pairs that specify a row.
+            table (str): Name of the table into which insertion occurs.
+            column (str): The name of the column to be updated.
+            value (int, str, float): The value to be set
+            where_key (str): The name of the select column
+            where_value  (str, int, float): The value for the select
+                column.
 
         """
-        pass
+        query = Update()
+        command = query.build(table, column, value, where_key, where_value)
+        self._execute(table, command)
 
-    def delete(self, tablename: str, where: dict) -> None:
+    def delete(self, table: str, where_key: str,
+               where_value=Union[str, float, int]) -> None:
         """Deletes a row from the designated table where key = value.
 
         Arguments
-            tablename (str): Name of the table into which insertion occurs.
-            where (dict): Dictionary of key, value pairs that specify a row.
+            table (str): Name of the table into which insertion occurs.
+            where_key (str): The name of the select column
+            where_value  (str, int, float): The value for the select
+                column.
 
         """
-        pass
-
-    def stats(self):
-        """Returns statistics on the current database."""
-        query = DatabaseStats()
-        command = query.build()
-        df = pd.read_sql(sql=command.cmd, con=self._connection,
-                         params=command.params)
-        return df
+        query = Delete()
+        command = query.build(table, where_key, where_value)
+        self._execute(table, command)
