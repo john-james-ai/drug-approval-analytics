@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 15th 2021, 5:47:58 pm                             #
-# Modified : Friday, July 30th 2021, 12:38:28 pm                              #
+# Modified : Tuesday, August 3rd 2021, 6:19:54 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -205,9 +205,6 @@ class DataSourceConfig:
 #                           CONFIGURATIONS                                    #
 # ----------------------------------------------------------------------------#
 # Database credentials
-dba_credentials = DBCredentials().get_config('postgres')
-aact_credentials = DBCredentials().get_config('AACT')
-engineer_credentials = DBCredentials().get_config('FeatureStore')
-operator_credentials = DBCredentials().get_config('Operations')
-test_credentials = DBCredentials().get_config('Test')
-temp_credentials = DBCredentials().get_config('Temp')
+dba_credentials = DBCredentials().set_config('postgres')
+aact_credentials = DBCredentials().set_config('AACT')
+test_credentials = DBCredentials().set_config('Test')

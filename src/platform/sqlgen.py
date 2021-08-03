@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Saturday, July 31st 2021, 4:21:14 am                             #
+# Modified : Tuesday, August 3rd 2021, 12:12:42 pm                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -39,20 +39,6 @@ from typing import Union
 from psycopg2 import sql
 from dataclasses import dataclass, field
 from datetime import datetime
-# --------------------------------------------------------------------------- #
-#                              SQL COMMAND                                    #
-# --------------------------------------------------------------------------- #
-
-
-@dataclass
-class SQLCommand:
-    """Class that encapsulates a sql command, its name and parameters."""
-    name: str
-    cmd: sql
-    to_string: bool = field(default=False)
-    description: str = field(default=None)
-    params: tuple = field(default=())
-    executed: datetime = field(default=datetime(1970, 1, 1, 0, 0))
 
 
 # --------------------------------------------------------------------------- #
@@ -330,6 +316,9 @@ class CreateArtifactTable(QueryBuilder):
                     version INTEGER,
                     type VARCHAR(32),
                     description VARCHAR(256),
+                    value_float FLOAT,
+                    value_int INTEGER,
+                    value_string String(64)
                     creator VARCHAR(128),
                     webpage VARCHAR(255),
                     uri VARCHAR(255),
@@ -524,150 +513,4 @@ class CreateParameterTable(QueryBuilder):
                 );"""
                         )
         )
-        return command
-
-
-# --------------------------------------------------------------------------- #
-#                                 SELECT                                      #
-# --------------------------------------------------------------------------- #
-class Select(QueryBuilder):
-    """Generates SQL to support basic queries."""
-
-    def _validate(self, table: str, columns: list = None,
-                  where_key: str = None,
-                  where_value: Union[str, int, float] = None) -> SQLCommand:
-
-        if (where_key and where_value) !=\
-                (where_key or where_value):
-            raise ValueError("where values not completely specified.")
-
-    def _build_cmd(self, table: str, columns: list = None) -> SQLCommand:
-
-        return sql.SQL("SELECT {} FROM {}").format(
-            sql.SQL(", ").join(map(sql.Identifier, columns)),
-            sql.Identifier(table))
-
-    def _build_where_cmd(self, table: str, columns: list = None,
-                         where_key: str = None,
-                         where_value: Union[str, int, float] = None)\
-            -> SQLCommand:
-
-        return sql.SQL("SELECT {} FROM {} WHERE {} = {} ").format(
-            sql.SQL(", ").join(map(sql.Identifier, columns)),
-            sql.Identifier(table),
-            sql.Identifier(where_key),
-            sql.Identifier(where_value))
-
-    def build(self, table: str, columns: list = None, where_key: str = None,
-              where_value: Union[str, int, float] = None) -> SQLCommand:
-
-        self._validate(table, columns, where_key, where_value)
-
-        columns = columns if columns is not None else ['*']
-
-        if where_key and where_value:
-            cmd = self._build_where_cmd(table, columns, where_key, where_value)
-        else:
-            cmd = self._build_cmd(table, columns)
-
-        command = SQLCommand(
-            name="select",
-            description="Select from {}.".format(table),
-            cmd=cmd)
-
-        return command
-
-
-# --------------------------------------------------------------------------- #
-#                                 INSERT                                      #
-# --------------------------------------------------------------------------- #
-class Insert(QueryBuilder):
-    """Generates SQL to support insert commands."""
-
-    def build(self, table: str, columns: list, values: list) -> SQLCommand:
-
-        if (len(columns) != len(values)):
-            raise ValueError(
-                "Number of columns doesn't match number of values")
-
-        command = SQLCommand(
-            name='insert',
-            to_string=True,
-            description="Insert into {} table".format(table),
-            cmd=sql.SQL("INSERT into {} ({}) values {}").format(
-                sql.Identifier(table),
-                sql.SQL(', ').join(map(sql.Identifier, tuple((*columns,)))),
-                sql.SQL(', ').join(sql.Placeholder() * len(columns))),
-            params=tuple((*values,))
-        )
-
-        return command
-
-# class Insert(QueryBuilder):
-#     """Generates SQL to support insert commands."""
-
-#     def build(self, table: str, columns: list, values: list) -> SQLCommand:
-
-#         if (len(columns) != len(values)):
-#             raise ValueError(
-#                 "Number of columns doesn't match number of values")
-
-#         command = SQLCommand(
-#             name='insert',
-#             description="Insert into {} table".format(table),
-#             cmd=sql.SQL("INSERT into {} ({}) values ({})").format(
-#                 sql.Identifier(table),
-#                 sql.SQL(', ').join(map(sql.Identifier, columns)),
-#                 sql.SQL(', ').join(map(sql.Placeholder, values))),
-#             params=tuple((values,))
-#         )
-
-#         return command
-
-
-# --------------------------------------------------------------------------- #
-#                                 UPDATE                                      #
-# --------------------------------------------------------------------------- #
-class Update(QueryBuilder):
-    """Generates SQL to support single value update commands."""
-
-    def build(self, table: str, column: str, value: Union[str, float, int],
-              where_key: str,
-              where_value=Union[str, float, int]) -> SQLCommand:
-
-        command = SQLCommand(
-            name='update',
-            description="Update {} table".format(table),
-            cmd=sql.SQL("UPDATE {} SET {} = {} WHERE {} = {}").format(
-                sql.Identifier(table),
-                sql.Identifier(column),
-                sql.Placeholder(),
-                sql.Identifier(where_key),
-                sql.Placeholder()),
-            params=tuple((value, where_value,))
-        )
-
-        return command
-
-# --------------------------------------------------------------------------- #
-#                                 UPDATE                                      #
-# --------------------------------------------------------------------------- #
-
-
-class Delete(QueryBuilder):
-    """Generates SQL to support basic delete commands."""
-
-    def build(self, table: str, where_key: str,
-              where_value=Union[str, float, int]) -> SQLCommand:
-
-        command = SQLCommand(
-            name='delete',
-            description="Delete from {} table".format(table),
-            cmd=sql.SQL("DELETE FROM {} WHERE {} = {}").format(
-                sql.Identifier(table),
-                sql.Identifier(where_key),
-                sql.Placeholder()),
-            params=tuple((where_value,))
-        )
-
         return command
