@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Thursday, August 5th 2021, 4:03:03 am                            #
+# Modified : Thursday, August 5th 2021, 1:29:34 pm                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -229,50 +229,22 @@ class TableSequel(SequelGen):
 
         return command
 
-    def add_column(self, name: str, schema: str, column: str, datatype: str,
-                   constraint: str = None) -> sql.SQL:
+    def get_columns(self, name: str, schema: str) -> sql.SQL:
 
-        if constraint:
-            sequel = sql.SQL("""ALTER TABLE {}
-                        ADD COLUMN IF NOT EXISTS {} {} {};""").format(
-                sql.Identifier(name),
-                sql.Identifier(column),
+        command = Sequel(
+            name="column_exists",
+            description="Obtained columns for {}.{} table".format(
+                schema, name),
+            cmd=sql.SQL("""SELECT column_name FROM information_schema.columns
+                                WHERE table_schema = {}
+                                AND table_name = {}""").format(
                 sql.Placeholder(),
-                sql.Placeholder(),
-            )
-            params = (datatype, constraint,)
-        else:
-            sequel = sql.SQL("""ALTER TABLE {}
-                        ADD COLUMN IF NOT EXISTS {} {};""").format(
-                sql.Identifier(name),
-                sql.Identifier(column),
                 sql.Placeholder()
-            )
-            params = (datatype,)
-
-        command = Sequel(
-            name="add_column",
-            description="Added column {} to  table {}".format(
-                column, name),
-            cmd=sequel,
-            params=params
+            ),
+            params=(schema, name)
         )
 
         return command
-
-    def drop_column(self, name: str, schema: str, column: str) -> sql.SQL:
-        command = Sequel(
-            name="drop_column",
-            description="Dropped column {}".format(name),
-            cmd=sql.SQL("""ALTER TABLE {}
-                        DROP COLUMN IF EXISTS {} CASCADE;""").format(
-                sql.Identifier(name),
-                sql.Identifier(name)
-            )
-        )
-
-        return command
-
 
 # --------------------------------------------------------------------------- #
 #                              SCHEMA SEQUEL                                  #
