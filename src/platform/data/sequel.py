@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Thursday, August 5th 2021, 12:12:05 am                           #
+# Modified : Thursday, August 5th 2021, 12:18:42 am                           #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -38,7 +38,7 @@ class Sequel:
     description: str = field(default=None)
     params: tuple = field(default=())
 # --------------------------------------------------------------------------- #
-#                                SequelGen                                       #
+#                                SequelGen                                    #
 # --------------------------------------------------------------------------- #
 
 
@@ -59,7 +59,7 @@ class SequelGen(ABC):
 
 
 # --------------------------------------------------------------------------- #
-#                             SequelGenDatabase                                  #
+#                             DATABASE SEQUEL                                 #
 # --------------------------------------------------------------------------- #
 class DatabaseSequel(SequelGen):
 
@@ -86,7 +86,7 @@ class DatabaseSequel(SequelGen):
     def terminate(self, name: str) -> sql.SQL:
         command = Sequel(
             name="terminate_database_processes",
-            description="Terminated processes on {}} database if it exists."
+            description="Terminated processes on {} database if it exists."
             .format(name),
             cmd=sql.SQL("""SELECT pg_terminate_backend(pg_stat_activity.pid)
                         FROM pg_stat_activity
@@ -111,7 +111,7 @@ class DatabaseSequel(SequelGen):
 
 
 # --------------------------------------------------------------------------- #
-#                               USERSEQUEL                                    #
+#                               USER SEQUEL                                   #
 # --------------------------------------------------------------------------- #
 class UserSequel(SequelGen):
 
@@ -261,7 +261,7 @@ class TableSequel(SequelGen):
             description="Dropped column {}".format(name),
             cmd=sql.SQL("""ALTER TABLE {}
                         DROP COLUMN IF EXISTS {} CASCADE;""").format(
-                sql.Identifier(table),
+                sql.Identifier(name),
                 sql.Identifier(name)
             )
         )
