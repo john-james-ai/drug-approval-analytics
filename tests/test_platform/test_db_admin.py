@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 28th 2021, 8:57:51 pm                            #
-# Modified : Thursday, August 5th 2021, 3:53:50 am                            #
+# Modified : Thursday, August 5th 2021, 12:52:37 pm                           #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -211,6 +211,7 @@ class TableTests:
         return_connection(connection)
         assert not response, "Table Exists Error: Expected False"
 
+    @announce
     def test_add_column(self):
         # Recreate the table
         df = pd.read_csv(self._filepath)
@@ -235,18 +236,31 @@ class TableTests:
                                           datatype='INTEGER')
         return_connection(connection)
 
+        # Print names of columns
+        connection = get_connection(dba_credentials)
+        response = self._admin.get_columns(connection=connection,
+                                           name=self._table)
+        return_connection(connection)
+        print(response)
+
         # Confirm it exists.
         connection = get_connection(dba_credentials)
         response = self._admin.column_exists(
-            connection=connection, name=self._table)
+            connection=connection,
+            name=self._table,
+            column='foo')
         return_connection(connection)
+        print(response)
         assert response, "Table Exists Error: Expected True"
 
+    @announce
     def test_drop_column(self):
         # Confirm column exists
         connection = get_connection(dba_credentials)
         response = self._admin.column_exists(
-            connection=connection, name=self._table, column='foo')
+            connection=connection,
+            name=self._table,
+            column='foo')
         return_connection(connection)
         assert response, "Column Exists Error: Expected True"
 
@@ -258,8 +272,10 @@ class TableTests:
 
         # Confirm it does not .
         connection = get_connection(dba_credentials)
-        response = self._admin.exists(
-            connection=connection, name=self._table)
+        response = self._admin.column_exists(
+            connection=connection,
+            name=self._table,
+            column='foo')
         return_connection(connection)
         assert not response, "Table Exists Error: Expected False"
         end(self)
@@ -269,11 +285,11 @@ def main():
     """Database Unit and Integration Testing """
     filepath = "./tests/data/backup.dmp"
     testdb = 'testdb'
-    aactdb = "AACT"
+    # aactdb = "AACT"
 
-    t = DBAdminTests(testdb, aactdb, filepath)
-    t.test_create_database()
-    t.test_drop_database()
+    # t = DBAdminTests(testdb, aactdb, filepath)
+    # t.test_create_database()
+    # t.test_drop_database()
     # t.test_backup()
     # t.test_restore()
 

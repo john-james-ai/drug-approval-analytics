@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Thursday, August 5th 2021, 3:49:53 am                            #
+# Modified : Thursday, August 5th 2021, 1:29:17 pm                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -364,53 +364,14 @@ class TableAdmin(Admin):
         logger.info(sequel.description)
 
     @exception_handler()
-    def add_column(self, connection, name: str, column: str, datatype: str,
-                   constraint: str = None, schema: str = 'public') -> None:
-        """Adds a column to a table.
-
-        Arguments:
-            connection(psycopg2.connection): Connection to postgres database.
-            name(str): The name of the table.
-            column (str): Name of column to add
-            schema (str): The namespace for the table.
-
-
-        """
-        sequel = self._sequel.add_column(name, schema, column,
-                                         datatype, constraint)
-        cursor = connection.cursor()
-        cursor.execute(sequel.cmd, sequel.params)
-        cursor.close()
-
-        logger.info(sequel.description)
-
-    @exception_handler()
-    def drop_column(self, connection, name: str, column: str,
-                    schema: str = 'public') -> None:
-        """Drops a table column.
-
-        Arguments:
-            connection(psycopg2.connection): Connection to postgres database.
-            name(str): The name of the table.
-            column (str): Name of column to drop
-            schema (str): The namespace for the table.
-
-        """
-        sequel = self._sequel.drop_column(name, schema, column)
-        cursor = connection.cursor()
-        cursor.execute(sequel.cmd, sequel.params)
-        cursor.close()
-
-        logger.info(sequel.description)
-
-    @exception_handler()
     def column_exists(self, connection, name: str, column: str,
                       schema: str = 'public') -> None:
         """Checks existance of a named database.
 
         Arguments
-            connection(psycopg2.connection): Connection to postgres database.
-            name(str): Name of database to check.
+            connection (psycopg2.connection): Connection to postgres database.
+            name (str): Name of table to check.
+            column (str): The column to check.
             schema (str): The namespace for the table.
 
         """
@@ -419,6 +380,27 @@ class TableAdmin(Admin):
         cursor = connection.cursor()
         cursor.execute(sequel.cmd, sequel.params)
         response = cursor.fetchone()
+        cursor.close()
+
+        logger.info(sequel.description)
+        return response
+
+    @exception_handler()
+    def get_columns(self, connection, name: str,
+                    schema: str = 'public') -> None:
+        """Return the column names for table.
+
+        Arguments
+            connection(psycopg2.connection): Connection to postgres database.
+            name(str): Name of table
+            schema (str): The namespace for the table.
+
+        """
+
+        sequel = self._sequel.get_columns(name, schema)
+        cursor = connection.cursor()
+        cursor.execute(sequel.cmd, sequel.params)
+        response = cursor.fetchall()
         cursor.close()
 
         logger.info(sequel.description)

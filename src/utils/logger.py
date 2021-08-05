@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 9:32:12 pm                            #
-# Modified : Thursday, August 5th 2021, 2:38:15 am                            #
+# Modified : Thursday, August 5th 2021, 1:09:31 pm                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -28,7 +28,7 @@ local variable of every frame.
 
 import logging
 import functools
-import inspect
+# import inspect
 import sys
 # --------------------------------------------------------------------------- #
 LOG_FRAME_TPL = '  File "%s", line %i, in %s\n    %s\n'
@@ -117,31 +117,31 @@ def exception_handler(frame_template: str = LOG_FRAME_TPL,
                 logger.error('Exception thrown, %s: %s\n' % (type(error),
                                                              str(error)))
 
-                # iterate through the frames in reverse order so we print
-                # the most recent frame first
-                frames = inspect.getinnerframes(sys.exc_info()[2])
-                for frame_info in reversed(frames):
-                    f_locals = frame_info[0].f_locals
+                # # iterate through the frames in reverse order so we print
+                # # the most recent frame first
+                # frames = inspect.getinnerframes(sys.exc_info()[2])
+                # for frame_info in reversed(frames):
+                #     f_locals = frame_info[0].f_locals
 
-                    # if there's a local variable named
-                    # '__lgw_marker_local__', we assume the frame is
-                    # from a call of this function, 'wrapper', and
-                    # we skip it. Printing these frames won't help
-                    # determine the cause of an exception, so skipping
-                    # it reduces clutter.
-                    if '__lgw_marker_local__' in f_locals:
-                        continue
+                #     # if there's a local variable named
+                #     # '__lgw_marker_local__', we assume the frame is
+                #     # from a call of this function, 'wrapper', and
+                #     # we skip it. Printing these frames won't help
+                #     # determine the cause of an exception, so skipping
+                #     # it reduces clutter.
+                #     if '__lgw_marker_local__' in f_locals:
+                #         continue
 
-                    # log the frame information
-                    logger.error(frame_template %
-                                 (frame_info[1], frame_info[2],
-                                  frame_info[3],
-                                  frame_info[4][0].lstrip()))
+                #     # log the frame information
+                #     logger.error(frame_template %
+                #                  (frame_info[1], frame_info[2],
+                #                   frame_info[3],
+                #                   frame_info[4][0].lstrip()))
 
-                    # log every local variable of the frame
-                    for k, v in f_locals.items():
-                        logger.error('    %s = %s\n' %
-                                     (k, value_to_string(v)))
+                #     # log every local variable of the frame
+                #     for k, v in f_locals.items():
+                #         logger.error('    %s = %s\n' %
+                #                      (k, value_to_string(v)))
 
                 raise
                 sys.exit(1)
