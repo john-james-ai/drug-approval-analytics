@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Tuesday, August 3rd 2021, 7:21:13 pm                             #
+# Modified : Thursday, August 5th 2021, 12:14:40 am                           #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -22,13 +22,12 @@
 from abc import ABC, abstractmethod
 import logging
 from subprocess import Popen, PIPE
-import tempfile
+import shlex
 
 import pandas as pd
-import psycopg2
-from psycopg2 import sql
 
 from ...utils.logger import exception_handler
+from .sqlgen import DatabaseSequel, TableSequel, UserSequel
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 
@@ -46,11 +45,6 @@ class Admin(ABC):
         pass
 
     @abstractmethod
-    def copy(self, connection, source: str,
-             target: str, *args, **kwargs) -> None:
-        pass
-
-    @abstractmethod
     def drop(self, connection, name: str) \
             -> None:
         pass
@@ -62,6 +56,9 @@ class Admin(ABC):
 
 class DBAdmin(Admin):
     """Database administration class."""
+
+    def __init__(self):
+        self._sequel = DatabaseSequel()
 
     @exception_handler()
     def create(self, connection, name: str) -> None:
@@ -80,13 +77,14 @@ class DBAdmin(Admin):
 
         """
 
-        command = sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name))
+        sequel = self._sequel.create(name)
 
+        connection.set_session(autocommit=True)
         cursor = connection.cursor()
-        cursor.execute(command)
+        cursor.execute(sequel.cmd, sequel.params)
         cursor.close()
 
-        logger.info("Created {} database".format(name))
+        logger.info(sequel.description)
 
     @exception_handler()
     def exists(self, connection, name: str) -> None:
@@ -97,50 +95,33 @@ class DBAdmin(Admin):
             name (str): Name of database to check.
 
         """
+        sequel = self._sequel.exists(name)
 
-        try:
-            command = sql.SQL("SELECT VERSION()")
-            cursor = connection.cursor()
-            cursor.execute(command)
+        cursor = connection.cursor()
+        cursor.execute(sequel.cmd, sequel.params)
+        response = cursor.fetchone()
+        cursor.close()
 
-        except psycopg2.OperationalError:
-            return False
+        logger.info(sequel.description)
 
-        finally:
-            cursor.close()
-        return True
+        return response
 
     @exception_handler()
-    def copy(self, connection, source: str, target: str) -> None:
-        """Copies a source database to a target database on same server.
+    def terminate_database_processes(self, connection, name: str) -> None:
+        """Terminates activity on a database.
 
         Arguments
             connection (psycopg2.connection): Connect to the database
-            source (str): The name of the source database.
-            target (str): The name of the target database.
-            *args, **kwargs: Arguments passed to pandas
-
-        Raises:
-            ERROR: user 'username' is not allowed to create/drop databases
-            ERROR: createdb: database "name" already exists
-            ERROR: database path may not contain single quotes
-            ERROR: CREATE DATABASE: may not be called in a transaction block
-            ERROR: Unable to create database directory 'path'.
-            ERROR: Could not initialize database directory.
+            name (str): The name of the database to be dropped.
 
         """
 
-        command = sql.SQL("CREATE DATABASE {} WITH TEMPLATE {};").format(
-            sql.Identifier(source),
-            sql.Identifier(target)
-        )
-
+        sequel = self._sequel.terminate(name)
         cursor = connection.cursor()
-        cursor.execute(command)
+        cursor.execute(sequel.cmd, sequel.params)
         cursor.close()
 
-        logger.info("Copied database {} to {}".format(
-            source, target))
+        logger.info(sequel.description)
 
     @exception_handler()
     def drop(self, connection, name: str) -> None:
@@ -152,15 +133,12 @@ class DBAdmin(Admin):
 
         """
 
-        command = sql.SQL("DROP DATABASE IF EXISTS {};").format(
-            sql.Identifier(name)
-        )
-
+        sequel = self._sequel.drop(name)
         cursor = connection.cursor()
-        cursor.execute(command)
+        cursor.execute(sequel.cmd, sequel.params)
         cursor.close()
 
-        logger.info("Dropped database {}.".format(name))
+        logger.info(sequel.description)
 
     @exception_handler()
     def backup(self, credentials: dict, filepath: str) -> None:
@@ -171,16 +149,14 @@ class DBAdmin(Admin):
             filepath(str): Location of the backup file.
 
         """
-        command = ['pg_dump',
-                   '--dbname=postgresql://{}:{}@{}:{}/{}'.format(
-                       credentials['user'],
-                       credentials['password'],
-                       credentials['host'],
-                       credentials['port'],
-                       credentials['dbname']),
-                   '-Fc -f',
-                   filepath,
-                   '-v']
+        USER = credentials['user']
+        HOST = credentials['host']
+        PORT = credentials['port']
+        DBNAME = credentials['dbname']
+
+        command =\
+            'pg_dump -h {0} -d {1} -U {2} -p {3} -Fc -f {4}'.format(
+                HOST, DBNAME, USER, PORT, filepath)
 
         self._run_process(command)
 
@@ -210,151 +186,223 @@ class DBAdmin(Admin):
     def _run_process(self, command):
         """Wrapper for Python subprocess commands."""
 
-        process = Popen(command,  shell=True, stdin=PIPE,
-                        stdout=PIPE, stderr=PIPE, encoding='utf8')
+        if isinstance(command, str):
+            command = shlex.split(command)
 
-        response = process.communicate()[0]
+        proc = Popen(command,  shell=True, stdin=PIPE,
+                     stdout=PIPE, stderr=PIPE, encoding='utf8')
 
-        if int(process.returncode) != 0:
-            raise Exception("Return code: {}\nResponse: {}"
-                            .format(process.returncode, response))
+        out, err = proc.communicate()
+
+        if int(proc.returncode) != 0:
+            if err.strip() == "":
+                err = out
+            mesg = "Error [%d]: %s" % (proc.returncode, command)
+            mesg += "\nDetail: %s" % err
+            raise Exception(mesg)
+
+        return proc.returncode, out, err
+
+
+# --------------------------------------------------------------------------- #
+#                           USER ADMINISTRATION                               #
+# --------------------------------------------------------------------------- #
+class UserAdmin(Admin):
+
+    def __init__(self):
+        self._sequel = UserSequel()
+
+    @exception_handler()
+    def create(self, connection, name: str) -> None:
+        """Creates a user for the connected database.
+
+        Arguments:
+            connection (psycopg2.connection): Connection to the database
+            name (str): The username
+
+        """
+        sequel = self._sequel.create(name)
+        cursor = connection.cursor()
+        cursor.execute(sequel.cmd, sequel.params)
+        cursor.close()
+
+        logger.info(sequel.description)
+
+    @exception_handler()
+    def exists(self, connection, name: str) -> None:
+        """Creates a user for the connected database.
+
+        Arguments:
+            connection (psycopg2.connection): Connection to the database
+            name (str): The username
+
+        """
+        sequel = self._sequel.exists(name)
+        cursor = connection.cursor()
+        cursor.execute(sequel.cmd, sequel.params)
+        response = cursor.fetchone()
+        cursor.close()
+
+        logger.info(sequel.description)
+        return response
+
+    @exception_handler()
+    def drop(self, connection, name: str) -> None:
+        """Creates a user for the connected database.
+
+        Arguments:
+            connection (psycopg2.connection): Connection to the database
+            name (str): The username
+
+        """
+        sequel = self._sequel.drop(name)
+        cursor = connection.cursor()
+        cursor.execute(sequel.cmd, sequel.params)
+        cursor.close()
+
+        logger.info(sequel.description)
+
+    @exception_handler()
+    def grant(self, connection, name: str, dbname: str) -> None:
+        """Grants user privileges to database.
+
+        Arguments:
+            connection (psycopg2.connection): Connection to the database
+            user (str): The username
+            dbname (str): The name of the database
+        """
+
+        sequel = self._sequel.create(name, dbname)
+        cursor = connection.cursor()
+        cursor.execute(sequel.cmd, sequel.params)
+        cursor.close()
+
+        logger.info(sequel.description)
+
+    @exception_handler()
+    def revoke(self, connection, name: str, dbname: str) -> None:
+        """Revokes user privileges to database.
+
+        Arguments:
+            connection (psycopg2.connection): Connection to the database
+            name (str): The username
+            dbname (str): The name of the database
+        """
+
+        sequel = self._sequel.revoke(name, dbname)
+        cursor = connection.cursor()
+        cursor.execute(sequel.cmd, sequel.params)
+        cursor.close()
+
+        logger.info(sequel.description)
 
 
 # --------------------------------------------------------------------------- #
 #                          TABLE ADMINISTRATION                               #
 # --------------------------------------------------------------------------- #
-
-
 class TableAdmin(Admin):
-    """Table administration class. """
+
+    def __init__(self):
+        self._sequel = TableSequel()
+
+    # ----------------------------------------------------------------------- #
+    #                      TABLE ADMINISTRATION                               #
+    # ----------------------------------------------------------------------- #
 
     @exception_handler()
-    def create(self, connection, data: pd.DataFrame,
-               name: str, **kwargs) \
+    def create(self, connection, name: str, data: pd.DataFrame,
+               schema: str = 'public', **kwargs) \
             -> None:
         """Creates a table from a pandas DataFrame object.
 
         Arguments:
-            connection (sqlalchemy.engine.Connection): Database connection
-            data (pd.DataFrame): DataFrame containing the data
-            name (str): The name of the table.
-            kwargs (dict): Arguments passed to pandas.
+            connection(sqlalchemy.engine.Connection): Database connection
+            name(str): The name of the table.
+            schema(str): The schema for the table.
+            data(pd.DataFrame): DataFrame containing the data
+            kwargs(dict): Arguments passed to pandas.
 
         Raises
             ValueError: If the table already exists and the
                 if_exists parameter = 'fail'.
         """
-        data.to_sql(name=name, con=connection, **kwargs)
+        data.to_sql(name=name, con=connection, schema=schema, **kwargs)
 
     @exception_handler()
-    def exists(self, connection, name: str) -> None:
+    def exists(self, connection, name: str,
+               schema: str = 'public') -> None:
         """Checks existance of a named database.
 
         Arguments
-            connection (psycopg2.connection): Connection to postgres database.
-            name (str): Name of database to check.
+            connection(psycopg2.connection): Connection to postgres database.
+            name(str): Name of database to check.
+            schema (str): The namespace for the table.
 
         """
 
-        command = sql.SQL("""SELECT FROM information_schema.tables
-            WHERE table_name = {};""")
+        sequel = self._sequel.exists(name, schema)
         cursor = connection.cursor()
-        response = cursor.execute("SELECT EXISTS ({});".format(command))
-        return response[0]
-
-    @exception_handler()
-    def copy(self, connection, source: str,
-             target: str) -> None:
-        """Copies source table to target table in the same database.
-
-        Arguments:
-            connection (psycopg2.connection): Connection to postgres database.
-            source (str): Source table name.
-            target (str): Target table name.
-        """
-        # Create tempfile
-        fp = tempfile.NamedTemporaryFile(mode="w+b", suffix=".csv")
-
-        # Copy source to temp file, and
-        command = sql.SQL("COPY {} TO {} WITH DELIMITER ',';").format(
-            sql.Identifier(source),
-            sql.Identifier(fp.name)
-        )
-        cursor = connection.cursor()
-        cursor.execute(command)
+        cursor.execute(sequel.cmd, sequel.params)
+        response = cursor.fetchone()
         cursor.close()
 
-        # Copy tempfile to target
-        command = sql.SQL("COPY {} FROM {} WITH DELIMITER ',';").format(
-            sql.Identifier(fp.name),
-            sql.Identifier(target)
-        )
-        cursor = connection.cursor()
-        cursor.execute(command)
-        cursor.close()
-
-        # Close the tempfile
-        fp.close()
+        logger.info(sequel.description)
+        return response
 
     @exception_handler()
-    def drop(self, connection, name: str) \
+    def drop(self, connection, name: str, schema: str = 'public') \
             -> None:
         """Drops the designated table
 
         Arguments
-            connection (psycopg2.connection): Connection to postgres database.
-            name (str): The name of the table to be dropped.
+            connection(psycopg2.connection): Connection to postgres database.
+            name(str): The name of the table to be dropped.
+            schema (str): The namespace for the table.
 
         """
-        command = sql.SQL("DROP TABLE IF EXISTS {}").format(
-            sql.Identifier(name)
-        )
+        sequel = self._sequel.drop(name, schema)
         cursor = connection.cursor()
-        cursor.execute(command)
+        cursor.execute(sequel.cmd, sequel.params)
         cursor.close()
 
+        logger.info(sequel.description)
+
     @exception_handler()
-    def add_columns(self, connection, name: str, columns: list)\
-            -> None:
-        """Adds a column or columns to a table.
+    def add_column(self, connection, name: str, column: str, datatype: str,
+                   constraint: str = None, schema: str = 'public') -> None:
+        """Adds a column to a table.
 
         Arguments:
-            connection (psycopg2.connection): Connection to postgres database.
-            name (str): The name of the table.
-            columns (list): List of dictionaries. Each dictionary
-                has column name for key and data type for value.
+            connection(psycopg2.connection): Connection to postgres database.
+            name(str): The name of the table.
+            column (str): Name of column to add
+            schema (str): The namespace for the table.
+
 
         """
+        sequel = self._sequel.add_column(name, schema, column,
+                                         datatype, constraint)
         cursor = connection.cursor()
-        for column in columns:
-            command = sql.SQL("""ALTER TABLE {} ADD COLUMN
-                              IF NOT EXISTS {} {}
-                              """).format(
-                sql.Identifier(name),
-                sql.Identifier(column.key()),
-                sql.Identifier(column.value())
-            )
-            cursor.execute(command)
+        cursor.execute(sequel.cmd, sequel.params)
         cursor.close()
 
+        logger.info(sequel.description)
+
     @exception_handler()
-    def drop_columns(self, connection, name: str, columns: list) \
-            -> None:
+    def drop_column(self, connection, name: str, column: str,
+                    schema: str = 'public') -> None:
         """Drops a table column.
 
         Arguments:
-            connection (psycopg2.connection): Connection to postgres database.
-            name (str): The name of the table.
-            columns (list): List of one or more columns to drop.
+            connection(psycopg2.connection): Connection to postgres database.
+            name(str): The name of the table.
+            column (str): Name of column to drop
+            schema (str): The namespace for the table.
 
         """
+        sequel = self._sequel.drop_column(name, schema, column)
         cursor = connection.cursor()
-        for column in columns:
-            command = sql.SQL("""ALTER TABLE {} DROP COLUMN
-                              IF EXISTS {}
-                              """).format(
-                sql.Identifier(name),
-                sql.Identifier(column)
-            )
-            cursor.execute(command)
+        cursor.execute(sequel.cmd, sequel.params)
         cursor.close()
+
+        logger.info(sequel.description)

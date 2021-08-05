@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:19:20 pm                               #
-# Modified : Thursday, July 29th 2021, 3:10:01 pm                             #
+# Modified : Wednesday, August 4th 2021, 11:05:16 pm                          #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -23,7 +23,7 @@
 from .sqllib import operations_tables
 from .database import DBAdmin, UserAdmin, TableAdmin
 from .config import dba_credentials, operator_credentials
-from .sqlgen import SQLCommand
+from .sqlgen import Sequel
 # --------------------------------------------------------------------------- #
 
 
@@ -75,10 +75,10 @@ class OperationsBuilder:
         ta = TableAdmin(self._credentials)
         for name, command in self._tables.items():
 
-            # Generate the SQLCommand object for the table.
-            sql_cmd = SQLCommand(name=name,
-                                 description="Create {} table.".format(name),
-                                 cmd=command)
+            # Generate the Sequel object for the table.
+            sql_cmd = Sequel(name=name,
+                             description="Create {} table.".format(name),
+                             cmd=command)
 
             if ta.exists(name):
                 print("Table {} already exists".format(name))

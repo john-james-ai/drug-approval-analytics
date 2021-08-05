@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 4:47:23 am                             #
-# Modified : Tuesday, August 3rd 2021, 7:35:48 pm                             #
+# Modified : Wednesday, August 4th 2021, 5:49:59 am                           #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -86,8 +86,7 @@ class PGConnector(Connector):
 
         PGConnector.__connection_pool = pool.SimpleConnectionPool(
             mincon, maxcon, **credentials)
-        logger.info("Initialized {} connection pool for {} database.".format(
-            PGConnector.__class__.__name__,
+        logger.info("Initialized connection pool for {} database.".format(
             credentials['dbname']))
 
     @staticmethod
