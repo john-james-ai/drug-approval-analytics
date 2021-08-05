@@ -27,8 +27,8 @@ import logging
 
 from src.utils.config import DBConfig
 from src.data.database.admin import DBAdmin
-from src.data.database.sqlgen import CreateDatabase, CreateTable, TableExists
-from src.data.database.sqlgen import DropTable
+from src.data.database.sequel import CreateDatabase, CreateTable, TableExists
+from src.data.database.sequel import DropTable
 # -----------------------------------------------------------------------------#
 logging.basicConfig()
 logging.root.setLevel(logging.NOTSET)

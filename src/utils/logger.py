@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 9:32:12 pm                            #
-# Modified : Saturday, July 31st 2021, 3:35:35 am                             #
+# Modified : Thursday, August 5th 2021, 2:38:15 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -144,6 +144,7 @@ def exception_handler(frame_template: str = LOG_FRAME_TPL,
                                      (k, value_to_string(v)))
 
                 raise
+                sys.exit(1)
 
         return wrapper
 

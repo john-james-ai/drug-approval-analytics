@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:19:20 pm                               #
-# Modified : Wednesday, August 4th 2021, 11:05:16 pm                          #
+# Modified : Thursday, August 5th 2021, 2:11:35 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -23,7 +23,7 @@
 from .sqllib import operations_tables
 from .database import DBAdmin, UserAdmin, TableAdmin
 from .config import dba_credentials, operator_credentials
-from .sqlgen import Sequel
+from .sequel import Sequel
 # --------------------------------------------------------------------------- #
 
 

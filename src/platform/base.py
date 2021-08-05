@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 4:47:23 am                             #
-# Modified : Wednesday, August 4th 2021, 5:49:59 am                           #
+# Modified : Thursday, August 5th 2021, 3:41:59 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -163,7 +163,7 @@ class SAConnector(Connector):
     @staticmethod
     @exception_handler()
     def return_connection(connection) -> None:
-        connection.close()
+        connection.dispose()
         logger.info(
             "Returned connection to {} connection pool.".format(
                 SAConnector.__class__.__name__,))

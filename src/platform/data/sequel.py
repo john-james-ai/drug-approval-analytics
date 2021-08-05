@@ -3,7 +3,7 @@
 # =========================================================================== #
 # Project  : Drug Approval Analytics                                          #
 # Version  : 0.1.0                                                            #
-# File     : \src\data\database\sqlgen.py                               #
+# File     : \src\data\database\sequel.py                               #
 # Language : Python 3.9.5                                                     #
 # --------------------------------------------------------------------------  #
 # Author   : John James                                                       #
@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Thursday, August 5th 2021, 12:18:42 am                           #
+# Modified : Thursday, August 5th 2021, 4:03:03 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -92,7 +92,8 @@ class DatabaseSequel(SequelGen):
                         FROM pg_stat_activity
                         WHERE pg_stat_activity.datname = {};""").format(
                 sql.Placeholder()
-            )
+            ),
+            params=tuple((name,))
         )
 
         return command
@@ -184,45 +185,46 @@ class TableSequel(SequelGen):
         raise NotImplementedError(msg)
 
     def drop(self, name: str, schema: str) -> sql.SQL:
-        name = ".".join(schema, name)
+        # names = [schema, name]
+        # name = ".".join(names)
         command = Sequel(
             name="drop_table",
             description="Dropped table {}".format(name),
-            cmd=sql.SQL("DROP TABLE IF EXISTS {} CASCADE;").format(
-                sql.Identifier(name))
+            cmd="DROP TABLE IF EXISTS {} CASCADE;".format(name)
         )
 
         return command
 
     def exists(self, name: str, schema: str) -> sql.SQL:
-        subquery = sql.SQL("""SELECT 1 FROM information_schema.tables
-                                WHERE table_schema = {}
-                                AND table_name = {}""").format(
-            sql.Identifier(schema),
-            sql.Identifier(name)
-        )
         command = Sequel(
             name="table_exists",
             description="Checked existence of table {}".format(name),
-            cmd=sql.SQL("SELECT EXISTS({});").format(subquery)
+            cmd=sql.SQL("""SELECT 1 FROM information_schema.tables
+                                WHERE table_schema = {}
+                                AND table_name = {}""").format(
+                sql.Placeholder(),
+                sql.Placeholder()
+            ),
+            params=(schema, name,)
         )
 
         return command
 
-    def column_exists(self, name: str, schema: str, tablename: str) -> sql.SQL:
-        subquery = sql.SQL("""SELECT 1 FROM information_schema.columns
-                                WHERE table_schema = {}
-                                AND table_name = {}
-                                AND column_name = {}""").format(
-            sql.Identifier(schema),
-            sql.Identifier(schema),
-            sql.Identifier(name)
-        )
+    def column_exists(self, name: str, schema: str, column: str) -> sql.SQL:
+
         command = Sequel(
             name="column_exists",
             description="Checked existence of column {} in {} table".format(
-                name, tablename),
-            cmd=sql.SQL("SELECT EXISTS({});").format(subquery)
+                column, name),
+            cmd=sql.SQL("""SELECT 1 FROM information_schema.columns
+                                WHERE table_schema = {}
+                                AND table_name = {}
+                                AND column_name = {}""").format(
+                sql.Placeholder(),
+                sql.Placeholder(),
+                sql.Placeholder()
+            ),
+            params=(schema, name, column,)
         )
 
         return command
@@ -235,22 +237,25 @@ class TableSequel(SequelGen):
                         ADD COLUMN IF NOT EXISTS {} {} {};""").format(
                 sql.Identifier(name),
                 sql.Identifier(column),
-                sql.Identifier(datatype),
-                sql.Identifier(constraint)
+                sql.Placeholder(),
+                sql.Placeholder(),
             )
+            params = (datatype, constraint,)
         else:
             sequel = sql.SQL("""ALTER TABLE {}
                         ADD COLUMN IF NOT EXISTS {} {};""").format(
                 sql.Identifier(name),
                 sql.Identifier(column),
-                sql.Identifier(datatype)
+                sql.Placeholder()
             )
+            params = (datatype,)
 
         command = Sequel(
             name="add_column",
             description="Added column {} to  table {}".format(
                 column, name),
-            cmd=sequel
+            cmd=sequel,
+            params=params
         )
 
         return command

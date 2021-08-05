@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Thursday, August 5th 2021, 12:14:40 am                           #
+# Modified : Thursday, August 5th 2021, 3:49:53 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -25,9 +25,10 @@ from subprocess import Popen, PIPE
 import shlex
 
 import pandas as pd
+from pandas import io
 
 from ...utils.logger import exception_handler
-from .sqlgen import DatabaseSequel, TableSequel, UserSequel
+from .sequel import DatabaseSequel, TableSequel, UserSequel
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 
@@ -99,7 +100,7 @@ class DBAdmin(Admin):
 
         cursor = connection.cursor()
         cursor.execute(sequel.cmd, sequel.params)
-        response = cursor.fetchone()
+        response = cursor.fetchone()[0]
         cursor.close()
 
         logger.info(sequel.description)
@@ -133,6 +134,7 @@ class DBAdmin(Admin):
 
         """
 
+        connection.set_session(autocommit=True)
         sequel = self._sequel.drop(name)
         cursor = connection.cursor()
         cursor.execute(sequel.cmd, sequel.params)
@@ -141,7 +143,7 @@ class DBAdmin(Admin):
         logger.info(sequel.description)
 
     @exception_handler()
-    def backup(self, credentials: dict, filepath: str) -> None:
+    def backup(self, credentials: dict, dbname: str, filepath: str) -> None:
         """Backs up database to the designated filepath
 
         Arguments
@@ -152,7 +154,7 @@ class DBAdmin(Admin):
         USER = credentials['user']
         HOST = credentials['host']
         PORT = credentials['port']
-        DBNAME = credentials['dbname']
+        DBNAME = dbname
 
         command =\
             'pg_dump -h {0} -d {1} -U {2} -p {3} -Fc -f {4}'.format(
@@ -161,26 +163,22 @@ class DBAdmin(Admin):
         self._run_process(command)
 
         logger.info("Backed up database {} to {}".format(
-            credentials['dbname'], filepath))
+            DBNAME, filepath))
 
     @exception_handler()
-    def restore(self, credentials: dict, filepath: str) -> None:
+    def restore(self, credentials: dict, dbname: str, filepath: str) -> None:
 
-        command = ['pg_restore',
-                   '--no-owner',
-                   '--dbname=postgresql://{}:{}@{}:{}/{}'.format(
-                       credentials['user'],
-                       credentials['password'],
-                       credentials['host'],
-                       credentials['port'],
-                       credentials['dbname']),
-                   '-v',
-                   filepath]
+        USER = credentials['user']
+        HOST = credentials['host']
+        DBNAME = dbname
 
+        command =\
+            'pg_dump -h {0} -d {1} -U {2} {3}'.format(
+                HOST, DBNAME, USER, filepath)
         self._run_process(command)
 
         logger.info("Restored database {} from {}".format(
-            credentials['dbname'], filepath))
+            DBNAME, filepath))
 
     @exception_handler()
     def _run_process(self, command):
@@ -240,7 +238,7 @@ class UserAdmin(Admin):
         sequel = self._sequel.exists(name)
         cursor = connection.cursor()
         cursor.execute(sequel.cmd, sequel.params)
-        response = cursor.fetchone()
+        response = cursor.fetchone()[0]
         cursor.close()
 
         logger.info(sequel.description)
@@ -355,15 +353,13 @@ class TableAdmin(Admin):
         """Drops the designated table
 
         Arguments
-            connection(psycopg2.connection): Connection to postgres database.
+            connection(sqlalchemy.engine.Connection): Database connection
             name(str): The name of the table to be dropped.
             schema (str): The namespace for the table.
 
         """
         sequel = self._sequel.drop(name, schema)
-        cursor = connection.cursor()
-        cursor.execute(sequel.cmd, sequel.params)
-        cursor.close()
+        io.sql.execute(sequel.cmd, connection)
 
         logger.info(sequel.description)
 
@@ -406,3 +402,24 @@ class TableAdmin(Admin):
         cursor.close()
 
         logger.info(sequel.description)
+
+    @exception_handler()
+    def column_exists(self, connection, name: str, column: str,
+                      schema: str = 'public') -> None:
+        """Checks existance of a named database.
+
+        Arguments
+            connection(psycopg2.connection): Connection to postgres database.
+            name(str): Name of database to check.
+            schema (str): The namespace for the table.
+
+        """
+
+        sequel = self._sequel.column_exists(name, schema, column)
+        cursor = connection.cursor()
+        cursor.execute(sequel.cmd, sequel.params)
+        response = cursor.fetchone()
+        cursor.close()
+
+        logger.info(sequel.description)
+        return response
