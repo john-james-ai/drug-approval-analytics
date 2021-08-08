@@ -95,6 +95,7 @@ target/
 
 # exclude data from source control by default
 /data/
+*.dmp
 
 # Mac OS-specific storage files
 .DS_Store
