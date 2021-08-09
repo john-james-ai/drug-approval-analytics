@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Sunday, August 8th 2021, 1:51:32 pm                              #
+# Modified : Monday, August 9th 2021, 1:04:01 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -446,14 +446,14 @@ class AccessSequel(AccessSequelBase):
             description="Inserted into {}.{} {} values {}".format(
                 schema, table, columns, table
             ),
-            cmd=sql.SQL("INSERT into {}.{} ({}) values {} RETURNING id;")
+            cmd=sql.SQL("INSERT into {}.{} ({}) values ({});")
             .format(
                 sql.Identifier(schema),
                 sql.Identifier(table),
                 sql.SQL(', ').join(map(sql.Identifier, tuple((*columns,)))),
                 sql.SQL(', ').join(sql.Placeholder() * len(columns))
             ),
-            params=(values,)
+            params=(*values,)
         )
 
         return sequel

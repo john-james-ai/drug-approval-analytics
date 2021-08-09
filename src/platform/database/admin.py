@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Sunday, August 8th 2021, 11:30:33 am                             #
+# Modified : Monday, August 9th 2021, 4:14:02 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -154,11 +154,18 @@ class DBAdmin(Admin):
         USER = credentials['user']
         HOST = credentials['host']
         PORT = credentials['port']
+        PASSWORD = credentials['password']
         DBNAME = dbname
 
-        command =\
-            'pg_dump -h {0} -d {1} -U {2} -p {3} -Fc -f {4}'.format(
-                HOST, DBNAME, USER, PORT, filepath)
+        command = ['pg_dump',
+                   '--dbname=postgresql://{}:{}@{}:{}/{}'.format(USER,
+                                                                 PASSWORD,
+                                                                 HOST,
+                                                                 PORT,
+                                                                 dbname),
+                   '-Fc',
+                   '-f', filepath,
+                   '-v']
 
         self._run_process(command)
 
@@ -170,11 +177,19 @@ class DBAdmin(Admin):
 
         USER = credentials['user']
         HOST = credentials['host']
+        PASSWORD = credentials['password']
+        PORT = credentials['port']
         DBNAME = dbname
 
-        command =\
-            'pg_dump -h {0} -d {1} -U {2} {3}'.format(
-                HOST, DBNAME, USER, filepath)
+        command = ['pg_restore',
+                   '--no-owner',
+                   '--dbname=postgresql://{}:{}@{}:{}/{}'.format(USER,
+                                                                 PASSWORD,
+                                                                 HOST,
+                                                                 PORT,
+                                                                 dbname),
+                   '-v',
+                   filepath]
         self._run_process(command)
 
         logger.info("Restored database {} from {}".format(

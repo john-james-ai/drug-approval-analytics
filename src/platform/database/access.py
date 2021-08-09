@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 5:03:11 am                             #
-# Modified : Sunday, August 8th 2021, 1:19:20 pm                              #
+# Modified : Monday, August 9th 2021, 4:03:38 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -24,8 +24,8 @@ import logging
 from typing import Union
 
 import pandas as pd
-import pandas.io.sql as sqlio
 import psycopg2
+import psycopg2.extras
 
 from .sequel import AccessSequel
 from ...utils.logger import exception_handler
@@ -193,15 +193,20 @@ class PGDao(DAO):
                 Optional default = all columns
             schema (str): The schema to which the table belongs.
                 Optional. Default='public'
+
+        Returns:
+            rowcount (int): The number of rows inserted.
         """
 
         sequel = self._sequel.add(table=table, schema=schema,
                                   columns=columns, values=values)
         cursor = connection.cursor()
         cursor.execute(sequel.cmd, sequel.params)
+        rowcount = cursor.rowcount
         cursor.close()
 
         logger.info(sequel.description)
+        return rowcount
 
     @exception_handler()
     def update(self, connection, table: str, column: str,
@@ -221,6 +226,8 @@ class PGDao(DAO):
             schema (str): The schema to which the table belongs.
                 Optional. Default='public'
 
+        Returns:
+            rowcount (int): The number of rows updated.
         """
         sequel = self._sequel.update(table=table,
                                      schema=schema, column=column,
@@ -228,9 +235,12 @@ class PGDao(DAO):
                                      where_value=where_value)
         cursor = connection.cursor()
         cursor.execute(sequel.cmd, sequel.params)
+        rowcount = cursor.rowcount
         cursor.close()
 
         logger.info(sequel.description)
+
+        return rowcount
 
     @exception_handler()
     def delete(self, connection, table: str, where_key: str,
@@ -248,12 +258,17 @@ class PGDao(DAO):
             schema (str): The schema to which the table belongs.
                 Optional. Default='public'
 
+        Returns:
+            rowcount (int): The number of rows deleted.
+
         """
         sequel = self._sequel.delete(table=table, schema=schema,
                                      where_key=where_key,
                                      where_value=where_value)
         cursor = connection.cursor()
         cursor.execute(sequel.cmd, sequel.params)
+        rowcount = cursor.rowcount
         cursor.close()
 
         logger.info(sequel.description)
+        return rowcount
