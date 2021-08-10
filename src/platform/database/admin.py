@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Tuesday, August 10th 2021, 3:37:21 am                            #
+# Modified : Tuesday, August 10th 2021, 4:03:47 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -103,7 +103,7 @@ class DBAdmin(Database):
         """
 
         self._connection.set_session(autocommit=True)
-        sequel = self._sequel.drop(name)
+        sequel = self._sequel.delete(name)
         self._modify(sequel)
 
     @exception_handler()
@@ -225,7 +225,7 @@ class UserAdmin(Database):
             name (str): The username
 
         """
-        sequel = self._sequel.drop(name)
+        sequel = self._sequel.delete(name)
         self._modify(sequel)
 
     @exception_handler()
@@ -324,7 +324,7 @@ class TableAdmin(Database):
             schema (str): The namespace for the table.
 
         """
-        sequel = self._sequel.drop(name, schema)
+        sequel = self._sequel.delete(name, schema)
         self._modify(sequel)
 
     @exception_handler()
@@ -357,20 +357,3 @@ class TableAdmin(Database):
         sequel = self._sequel.get_columns(name, schema)
         response = self._read(sequel)
         return response
-
-    @exception_handler()
-    def add_column(self, name: str, column: str, datatype: str,
-                   schema: str = 'public') -> None:
-        """Return the column names for table.
-
-        Arguments
-            name(str): Name of table
-            column (str): Name of column to add
-            datatype (str): Data type for column
-            schema (str): The namespace for the table.
-
-        """
-
-        sequel = self._sequel.add_column(
-            name=name, schema=schema, column=column, datatype=datatype)
-        self._modify(sequel)

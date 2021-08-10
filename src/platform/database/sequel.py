@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Tuesday, August 10th 2021, 3:41:29 am                            #
+# Modified : Tuesday, August 10th 2021, 4:06:51 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -53,7 +53,7 @@ class AdminSequelBase(ABC):
         pass
 
     @abstractmethod
-    def drop(self, name: str) -> Sequel:
+    def delete(self, name: str) -> Sequel:
         pass
 
     @abstractmethod
@@ -69,11 +69,11 @@ class AccessSequelBase(ABC):
     """Defines the API for Access related SQL queries."""
 
     @abstractmethod
-    def get(self, name: str, *args, **kwargs) -> Sequel:
+    def read(self, name: str, *args, **kwargs) -> Sequel:
         pass
 
     @abstractmethod
-    def add(self, name: str, *args, **kwargs) -> Sequel:
+    def create(self, name: str, *args, **kwargs) -> Sequel:
         pass
 
     @abstractmethod
@@ -105,7 +105,7 @@ class AdminSequel(AdminSequelBase):
 
         return sequel
 
-    def drop(self, name: str) -> Sequel:
+    def delete(self, name: str) -> Sequel:
         sequel = Sequel(
             name="drop database",
             description="Dropped {} database if it exists.".format(name),
@@ -158,7 +158,7 @@ class UserSequel(AdminSequelBase):
 
         return sequel
 
-    def drop(self, name: str) -> Sequel:
+    def delete(self, name: str) -> Sequel:
         sequel = Sequel(
             name="drop_user",
             description="Dropped user {}".format(name),
@@ -216,7 +216,7 @@ class TableSequel(AdminSequelBase):
         msg += "No query required."
         raise NotImplementedError(msg)
 
-    def drop(self, name: str, schema: str = 'public') -> Sequel:
+    def delete(self, name: str, schema: str = 'public') -> Sequel:
         # names = [schema, name]
         # name = ".".join(names)
         sequel = Sequel(
@@ -280,8 +280,8 @@ class TableSequel(AdminSequelBase):
 
         return sequel
 
-    def add_column(self, name: str, schema: str, column: str,
-                   datatype: str) -> Sequel:
+    def create_column(self, name: str, schema: str, column: str,
+                      datatype: str) -> Sequel:
 
         sequel = Sequel(
             name="column_exists",
@@ -314,7 +314,7 @@ class SchemaSequel(AdminSequelBase):
 
         return sequel
 
-    def drop(self, name: str) -> Sequel:
+    def delete(self, name: str) -> Sequel:
         sequel = Sequel(
             name="drop_schema",
             description="Dropped schema {}".format(name),
@@ -419,9 +419,9 @@ class AccessSequel(AccessSequelBase):
         )
         return sequel
 
-    def get(self, table: str, schema: str, columns: list = None,
-            where_key: str = None, where_value: Union[str, int, float] = None)\
-            -> Sequel:
+    def read(self, table: str, schema: str, columns: list = None,
+             where_key: str = None, where_value: Union[str, int, float]
+             = None) -> Sequel:
 
         if (where_key is None and where_value is None) != \
                 (where_key is None or where_value is None):
@@ -451,8 +451,8 @@ class AccessSequel(AccessSequelBase):
                                                   where_key=where_key,
                                                   where_value=where_value)
 
-    def add(self, table: str, schema: str, columns: list,
-            values: list) -> Sequel:
+    def create(self, table: str, schema: str, columns: list,
+               values: list) -> Sequel:
 
         if (len(columns) != len(values)):
             raise ValueError(

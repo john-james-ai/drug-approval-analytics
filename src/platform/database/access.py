@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 5:03:11 am                             #
-# Modified : Tuesday, August 10th 2021, 1:03:59 am                            #
+# Modified : Tuesday, August 10th 2021, 4:08:26 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -62,10 +62,9 @@ class PGDao(Database):
             rowcount (int): The number of rows inserted.
         """
 
-        sequel = self._sequel.add(table=table, schema=schema,
-                                  columns=columns, values=values)
-        self._modify(sequel)
-        response = self._cursor.rowcount
+        sequel = self._sequel.create(table=table, schema=schema,
+                                     columns=columns, values=values)
+        response = self._modify(sequel)
         return response
 
     @exception_handler()
@@ -90,9 +89,9 @@ class PGDao(Database):
                 are returned.
 
         """
-        sequel = self._sequel.get(table=table, schema=schema,
-                                  columns=columns, where_key=where_key,
-                                  where_value=where_value)
+        sequel = self._sequel.read(table=table, schema=schema,
+                                   columns=columns, where_key=where_key,
+                                   where_value=where_value)
         response = self._read(sequel)
 
         colnames = [element[0] for element in self._cursor.description]
@@ -126,7 +125,8 @@ class PGDao(Database):
                                      value=value, where_key=where_key,
                                      where_value=where_value)
         self._modify(sequel)
-        response = self._cursor.rowcount
+        response = self._modify(sequel)
+
         return response
 
     @exception_handler()
@@ -152,7 +152,6 @@ class PGDao(Database):
         sequel = self._sequel.delete(table=table, schema=schema,
                                      where_key=where_key,
                                      where_value=where_value)
-        self._modify(sequel)
-        response = self._cursor.rowcount
+        response = self._modify(sequel)
 
         return response

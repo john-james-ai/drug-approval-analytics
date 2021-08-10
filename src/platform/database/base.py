@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, August 9th 2021, 11:44:10 pm                             #
-# Modified : Tuesday, August 10th 2021, 2:38:42 am                            #
+# Modified : Tuesday, August 10th 2021, 3:50:00 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -105,8 +105,10 @@ class Database(ABC):
             self._connect()
         cursor = self._connection.cursor()
         cursor.execute(sequel.cmd, sequel.params)
+        response = cursor.rowcount
         cursor.close()
         logger.info(sequel.description)
+        return response
 
     @abstractmethod
     def create(self, *args, **kwargs) -> Union[any]:

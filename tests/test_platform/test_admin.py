@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 10th 2021, 1:35:36 am                            #
-# Modified : Tuesday, August 10th 2021, 3:42:37 am                            #
+# Modified : Tuesday, August 10th 2021, 3:44:03 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -146,13 +146,4 @@ class TableAdminTests:
         test = "source"
         admin = TableAdmin(dba_credentials.credentials)
         response = admin.get_columns(name=test)
-        assert len(response) == 14, "TableError, Get columns failure."
-
-    @announce
-    def test_add_columns(self):
-        admin = TableAdmin(dba_credentials.credentials)
-        test = "source"
-        admin.add_column(name=test, column="figit", datatype="INTEGER")
-        response = admin.get_columns(name=test)
-        assert len(response) == 15, "TableError, Add column failure."
-        end(self)
+        assert len(response) == 15, "TableError, Get columns failure."
