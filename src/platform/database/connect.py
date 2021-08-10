@@ -12,13 +12,13 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 4:47:23 am                             #
-# Modified : Sunday, August 8th 2021, 10:46:08 am                             #
+# Modified : Monday, August 9th 2021, 10:12:32 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
-"""Defines base classes for database connections and access."""
+"""Core internal Base, Connection, and ConnectionFactory classes."""
 from abc import ABC, abstractmethod
 import logging
 
@@ -28,13 +28,16 @@ from sqlalchemy import create_engine
 from ...utils.logger import exception_handler
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
-# --------------------------------------------------------------------------- #
-#                   DATABASE CONNECTOR BASE CLASS                             #
-# --------------------------------------------------------------------------- #
 
 
-class Connector(ABC):
-    """Abstract base class for platform specific subclasses"""
+# --------------------------------------------------------------------------- #
+#                       CONNECTION FACTORY BASE CLASS                         #
+# --------------------------------------------------------------------------- #
+
+class ConnectionFactory(ABC):
+    """Interface for database connection factories."""
+
+    __connection_pool = None
 
     @staticmethod
     @abstractmethod
@@ -64,7 +67,7 @@ class Connector(ABC):
 # --------------------------------------------------------------------------- #
 #                      POSTGRES CONNECTOR CLASS                               #
 # --------------------------------------------------------------------------- #
-class PGConnector(Connector):
+class PGConnectionFactory(ConnectionFactory):
     """Postgres database connection pool."""
 
     __connection_pool = None
@@ -84,15 +87,16 @@ class PGConnector(Connector):
                 Defaults to 10.
         """
 
-        PGConnector.__connection_pool = pool.SimpleConnectionPool(
+        PGConnectionFactory.__connection_pool = pool.SimpleConnectionPool(
             mincon, maxcon, **credentials)
+
         logger.info("Initialized connection pool for {} database.".format(
             credentials['dbname']))
 
     @staticmethod
     @exception_handler()
     def get_connection():
-        con = PGConnector.__connection_pool.getconn()
+        con = PGConnectionFactory.__connection_pool.getconn()
         name = con.info.dsn_parameters['dbname']
         logger.info(
             "Getting connection from {} connection pool.".format(name))
@@ -101,7 +105,7 @@ class PGConnector(Connector):
     @staticmethod
     @exception_handler()
     def return_connection(connection) -> None:
-        PGConnector.__connection_pool.putconn(connection)
+        PGConnectionFactory.__connection_pool.putconn(connection)
         name = connection.info.dsn_parameters['dbname']
         logger.info(
             "Returning connection to {} connection pool.".format(name))
@@ -109,13 +113,13 @@ class PGConnector(Connector):
     @staticmethod
     @exception_handler()
     def close_all_connections() -> None:
-        PGConnector.__connection_pool.closeall()
+        PGConnectionFactory.__connection_pool.closeall()
 
 
 # --------------------------------------------------------------------------- #
 #                      SQLALCHEMY CONNECTOR CLASS                             #
 # --------------------------------------------------------------------------- #
-class SAConnector(Connector):
+class SAConnectionFactory(ConnectionFactory):
     """SQLAlchemy database connection pool."""
 
     __connection_pool = None
@@ -134,7 +138,7 @@ class SAConnector(Connector):
             max_overflow (int, optional): Max number of pools above
                 pool size. Defaults to 10.
         """
-
+        SAConnectionFactory.initialized = False
         USER = credentials['user']
         PWD = credentials['password']
         HOST = credentials['host']
@@ -143,19 +147,19 @@ class SAConnector(Connector):
 
         DATABASE_URI = f'postgresql://{USER}:{PWD}@{HOST}:{PORT}/'
 
-        SAConnector.__connection_pool = \
+        SAConnectionFactory.__connection_pool = \
             create_engine(f'{DATABASE_URI}{DBNAME}',
                           pool_size=pool_size, max_overflow=max_overflow)
 
         logger.info("Initialized {} connection pool for {} database.".format(
-            SAConnector.__class__.__name__,
+            SAConnectionFactory.__class__.__name__,
             credentials['dbname']))
 
     @staticmethod
     @exception_handler()
     def get_connection():
         """Returns a connection engine object."""
-        connection = SAConnector.__connection_pool
+        connection = SAConnectionFactory.__connection_pool
         logger.info(
             "Obtained SQLAlchemy connection from connection pool.")
         return connection
@@ -166,12 +170,12 @@ class SAConnector(Connector):
         connection.dispose()
         logger.info(
             "Returned connection to {} connection pool.".format(
-                SAConnector.__class__.__name__,))
+                SAConnectionFactory.__class__.__name__,))
 
     @staticmethod
     @exception_handler()
     def close_all_connections() -> None:
-        SAConnector.__connection_pool.dispose()
+        SAConnectionFactory.__connection_pool.dispose()
         logger.info(
             "Closed all {} connections.".format(
-                SAConnector.__class__.__name__,))
+                SAConnectionFactory.__class__.__name__,))

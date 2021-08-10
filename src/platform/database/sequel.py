@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Monday, August 9th 2021, 1:04:01 pm                              #
+# Modified : Tuesday, August 10th 2021, 3:41:29 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -280,6 +280,23 @@ class TableSequel(AdminSequelBase):
 
         return sequel
 
+    def add_column(self, name: str, schema: str, column: str,
+                   datatype: str) -> Sequel:
+
+        sequel = Sequel(
+            name="column_exists",
+            description="Add column {} to {}.{} table".format(
+                column, schema, name),
+            cmd=sql.SQL("""ALTER TABLE {}.{} ADD {} {};""").format(
+                sql.Identifier(schema),
+                sql.Identifier(name),
+                sql.Identifier(column),
+                sql.Placeholder()
+            ),
+            params=(datatype,)
+        )
+
+        return sequel
 # --------------------------------------------------------------------------- #
 #                              SCHEMA SEQUEL                                  #
 # --------------------------------------------------------------------------- #

@@ -12,40 +12,18 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Saturday, July 17th 2021, 2:00:13 pm                             #
-# Modified :                                                                  #
+# Modified : Monday, August 9th 2021, 8:20:11 pm                              #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
-#!/usr/bin/env python3
-# -*- coding:utf-8 -*-
-#==============================================================================#
-# Project  : Drug Approval Analytics                                           #
-# Version  : 0.1.0                                                             #
-# File     : \src\data\extract.py                                              #
-# Language : Python 3.9.5                                                      #
-# -----------------------------------------------------------------------------#
-# Author   : John James                                                        #
-# Company  : nov8.ai                                                           #
-# Email    : john.james@nov8.ai                                                #
-# URL      : https://github.com/john-james-sf/drug-approval-analytics          #
-# -----------------------------------------------------------------------------#
-# Created  : Saturday, July 17th 2021, 2:00:13 pm                              #
-# Modified : Saturday, July 17th 2021, 5:26:31 pm                              #
-# Modifier : John James (john.james@nov8.ai)                                   #
-# -----------------------------------------------------------------------------#
-# License  : BSD 3-clause "New" or "Revised" License                           #
-# Copyright: (c) 2021 nov8.ai                                                  #
-#==============================================================================#
-"""Data Sources Module
+"""Extract Module
 
-This module defines the data sources used in the project. A DataSource base
-class defines the interface and attributes inherited by source specific
-descendent classes.  All datasources are stored in the PostgreSQL metadata
-database using Object-relational mapping capabilities of SQLAlchemy.
+Classes responsible for extracting data from designated web sources.
 
 """
+from abc import ABC, abstractmethod
 import os
 from datetime import datetime, timedelta
 import requests
@@ -59,118 +37,69 @@ from zipfile import ZipFile
 import pandas as pd
 from bs4 import BeautifulSoup
 from bs4.element import ResultSet
-from sqlalchemy import String, Integer, Column, Boolean, DateTime
-from sqlalchemy.schema import ForeignKey
-from sqlalchemy.dialects.postgresql import JSON, ARRAY
-from sqlalchemy.ext.hybrid import hybrid_property
 
-from ..utils.config import Config
-from .database import Base
+
 # -----------------------------------------------------------------------------#
-class DataSource(Base):
-    """Class defining a data source used in this project.
+#                               HABITUE                                        #
+# -----------------------------------------------------------------------------#
+class Habitue(ABC):
+    """Base class for data source visitor subclasses.
 
-    Arguments
-    ----------
-        name (str): The name of the data source
+    Classes frequently visit data sources to obtain current links, determine
+    if the data has been updated, and whether it is time to download
+    fresh data from a data source. 
 
-    Attributes
-        name (str): Name of object.
-        title (str): The title for the source.
-        description (str): A text description for reporting purposes
-        creator (str): The organization responsible for producing the source.
-        maintainer (str): The organization that maintains the data and its distribution
-        webpage (str): Webpage containing the data
-        url_type (str): The type of url, i.e. baseurl or direct to the resource
-        url (str): The url value of the aforementioned type.
-        metadata (str): URL to additional metadata if available.
-        media_type (str): The format, or more formally, the MIME type of the data as per RFC2046
-        frequency (str): The frequency by which the source is updated.
-        coverage (str): The temporal range of the data if available.
-        lifecycle (int): The number of days between data refresh at the source
-        last_updated (DateTime): The date the source links were last updated
-        last_extracted (DateTime): The date the source was last extracted
-        last_staged (DateTime): The date the source was last staged
+    Arguments:
+        name (str): The registered name for the data source.
+        database (DBDao): Database access object containing the meta data
 
-        created (DateTime): The datetime this object was created
-        updated (DateTime): The datetime this object was last updated.
+    Attributes:
+        expired (bool): Indicates if a data source has not been updated
+            in the last 'lifecycle' days.
+        updated (bool): Indicates whether a data source has been
+            updated since last extracted.
+        extract (bool): True if a data source has not been extracted
+            in 'lifecycle' days AND the data source has been updated
+            since it was last extracted; False otherwise.
+        uris (list): List of URIs for the data source.
+        num_uris: The number of individual URIs to extract.        
+
     """
-    __tablename__ = 'datasource'
 
-    id = Column(Integer, primary_key=True)
-    _name = Column('name', String(20))
-    _title = Column('name', String(120))
-    _description = Column('description', String(240))
-    _creator = Column('creator', String(40))
-    _maintainer = Column('maintainer', String(40))
-    _webpage = Column('webpage', String(80))
-    _url_type = Column('url_type', String(80))
-    _url = Column('url', String(120))
-    _metadata =  Column('metadata', String(80))
-    _media_type =  Column('media_type', String(16))
-    _frequency =  Column('frequency', String(32))
-    _coverage =  Column('coverage', String(40))
-    _lifecycle = Column('lifecycle', Integer)
-    _last_updated = Column('last_updated', DateTime)
-    _last_extracted = Column('last_extracted', DateTime)
-    _last_staged = Column('last_staged', DateTime)
-    _created = Column('created', DateTime)
-    _updated = Column('updated', DateTime)
-
-    # Supports Polymorphism
-    type = Column(String)
-
-    __mapper_args__ = {
-        'polymorphic_identity': 'datasource',
-        'polymorphic_on': type
-    }
-
-    def __init__(self, name):
-        parser = Config()
-        config = parser.get_section(name)
-
+    def __init__(self, name, database):
         self._name = name
-        self._title = config.title
-        self._description = config.description
-        self._creator = config.creator
-        self._maintainer = config.maintainer
-        self._webpage = config.webpage
-        self._url = config.url
-        self._url_type = config.url_type
-        self._metadata = config.metadata
-        self._media_type = config.media_type
-        self._frequency = config.frequency
-        self._coverage = config.coverage
-        self._lifecycle = config.lifecycle
-        self._last_updated = config.last_updated
-        self._last_extracted = config.last_extracted
-        self._last_staged = config.last_staged
+        self._database = database
+        self._uris = []
+        self._num_uris = 0
 
-        self._created = datetime.now()
-        self._updated = datetime.now()
-
-        self._urls = []
-
+    @abstractmethod
     def __str__(self):
-        text = ""
-        text += "DataSource"
-        text += "----------"
-        for key, value in __dict__:
-            text += "{} = {}".format(key,value)
-        text += "----------"
-        return text
+        pass
 
+    @abstractmethod
     def __repr__(self):
-        return "{classname}({name})".format(
-            classname=self.__class__.__name__,
-            name=repr(self._name))
+        pass
 
+    def get_metadata(self):
+        self._database.get()
+
+    @abstractmethod
+    def visit(self):
+        pass
+
+    @property
+    def uris(self):
+        return self._uris
+
+    @property
+    def num_uris(self):
+        return self._num_uris
     # ----------------------------------------------------------------------- #
     #                     PUBLIC METHODS (AS PROPERTIES)                      #
     # ----------------------------------------------------------------------- #
+
     def update_data_source_information(self):
         pass
-
 
     @hybrid_property
     def is_refreshable(self):
@@ -190,8 +119,8 @@ class DataSource(Base):
         Returns True if the difference between date_downloaded and today is
         greater than the lifecycle.
         """
-        return  datetime.now() > (self._last_extracted + \
-            timedelta(days=self._lifecycle))
+        return datetime.now() > (self._last_extracted +
+                                 timedelta(days=self._lifecycle))
 
     # ----------------------------------------------------------------------- #
     #                              PROPERTIES                                 #
@@ -257,7 +186,6 @@ class DataSource(Base):
         return self._updated
 
 
-
 # -----------------------------------------------------------------------------#
 class AACTDataSource(DataSource):
     """Datasource for the AACT Clinical Trials Database"""
@@ -265,7 +193,6 @@ class AACTDataSource(DataSource):
     __tablename__ = 'aact_datasource'
 
     id = Column(Integer, ForeignKey('datasource.id'), primary_key=True)
-
 
     __mapper_args__ = {
         'polymorphic_identity': 'aact_datasource',
@@ -296,7 +223,6 @@ class AACTDataSource(DataSource):
         # Confirm that link is from the daily static table.
         self._valid_url_exists = 'daily' in link
 
-
         # If the link is valid, format the full url and obtain its timestamp
         # and update the member variables.
         if self._valid_url_exists:
@@ -311,6 +237,8 @@ class AACTDataSource(DataSource):
         self._updated = datetime.now()
 
 # -----------------------------------------------------------------------------#
+
+
 class DrugsDataSource(DataSource):
     """Obtains data from Drugs@FDA site"""
 
@@ -331,13 +259,12 @@ class DrugsDataSource(DataSource):
     def update_data_source_information(self):
         """Obtains and validates urls and timestamps associated with the data"""
 
-
-
         response = requests.get(self._webpage)
         response.raise_for_status()
         # Use BeautifulSoup to create searchable html parser
         soup = BeautifulSoup(response.content, 'html.parser')
-        link = soup.find(attrs={"data-entity-substitution":"media_download"})["href"]
+        link = soup.find(
+            attrs={"data-entity-substitution": "media_download"})["href"]
         # Format url and add to list object.
         url = self._baseurl + link
         self._urls = []
@@ -349,8 +276,6 @@ class DrugsDataSource(DataSource):
 
         # Update the timestamp on this object
         self._updated = datetime.now()
-
-
 
 
 # -----------------------------------------------------------------------------#
@@ -394,7 +319,3 @@ class LabelsDataSource(DataSource):
         self._last_updated = datetime.strptime(last_updated_text, "%Y-%m-%d")
 
         self._updated = datetime.now()
-
-
-
-
