@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, August 8th 2021, 8:31:22 am                              #
-# Modified : Monday, August 9th 2021, 4:15:21 pm                              #
+# Modified : Tuesday, August 10th 2021, 8:10:41 pm                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -45,7 +45,7 @@ class BackoveryTests:
         assert df.shape[0] == 10, "DAOError: Dataframe has no rows"
         assert df.shape[1] == 14, "DAOError: Dataframe has no columns"
         admin = DBAdmin()
-        admin.backup(credentials=dba_credentials.credentials,
+        admin.backup(credentials=dba_credentials,
                      dbname=dbname,
                      filepath=filepath)
         assert os.path.exists(filepath), "Backup failed."
@@ -57,7 +57,7 @@ class BackoveryTests:
         filepath = "tests/data/backovery.dump"
         dbname = "test"
         admin = DBAdmin()
-        admin.restore(dba_credentials.credentials, dbname, filepath)
+        admin.restore(dba_credentials, dbname, filepath)
         access = PGDao()
         df = access.get(table="sources", connection=connection)
         assert isinstance(

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 9:32:12 pm                            #
-# Modified : Thursday, August 5th 2021, 1:09:31 pm                            #
+# Modified : Thursday, August 12th 2021, 7:28:24 am                           #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -28,7 +28,7 @@ local variable of every frame.
 
 import logging
 import functools
-# import inspect
+import inspect
 import sys
 # --------------------------------------------------------------------------- #
 LOG_FRAME_TPL = '  File "%s", line %i, in %s\n    %s\n'
@@ -114,8 +114,10 @@ def exception_handler(frame_template: str = LOG_FRAME_TPL,
 
                 # log exception information first in case something fails
                 # below
-                logger.error('Exception thrown, %s: %s\n' % (type(error),
-                                                             str(error)))
+                logger.error('Exception thrown in %s, %s: %s\n' % (
+                    func.__qualname__,
+                    type(error),
+                    str(error)))
 
                 # # iterate through the frames in reverse order so we print
                 # # the most recent frame first

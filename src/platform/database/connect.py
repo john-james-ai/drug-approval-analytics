@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 4:47:23 am                             #
-# Modified : Monday, August 9th 2021, 10:12:32 pm                             #
+# Modified : Tuesday, August 10th 2021, 8:14:16 pm                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -26,6 +26,7 @@ from psycopg2 import pool
 from sqlalchemy import create_engine
 
 from ...utils.logger import exception_handler
+from ..config import DBCredentials
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class ConnectionFactory(ABC):
 
     @staticmethod
     @abstractmethod
-    def initialize(credentials: dict, *args, **kwargs) -> None:
+    def initialize(credentials: DBCredentials, *args, **kwargs) -> None:
         """Initializes connection pool"""
         pass
 
@@ -74,7 +75,7 @@ class PGConnectionFactory(ConnectionFactory):
 
     @staticmethod
     @exception_handler()
-    def initialize(credentials: dict, mincon: int = 2,
+    def initialize(credentials: DBCredentials, mincon: int = 2,
                    maxcon: int = 10) -> None:
         """Initializes connection pool
 
@@ -126,7 +127,7 @@ class SAConnectionFactory(ConnectionFactory):
 
     @staticmethod
     @exception_handler()
-    def initialize(credentials: dict, pool_size: int = 5,
+    def initialize(credentials: DBCredentials, pool_size: int = 5,
                    max_overflow: int = 10) -> None:
         """Initializes connection pool
 

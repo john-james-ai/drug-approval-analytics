@@ -8,4 +8,4 @@ DROP TABLE public.trainingevent CASCADE;
 DROP TABLE public.prediction CASCADE;
 DROP TABLE public.model CASCADE;
 DROP TABLE public.datasourceevent CASCADE;
-DROP TABLE public.statistic CASCADE;
+DROP TABLE public.countstats CASCADE;

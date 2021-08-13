@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, August 9th 2021, 11:44:10 pm                             #
-# Modified : Tuesday, August 10th 2021, 3:50:00 am                            #
+# Modified : Thursday, August 12th 2021, 9:23:28 pm                           #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -23,103 +23,57 @@ from abc import ABC, abstractmethod
 import logging
 from typing import Union
 
+import psycopg2
+
 from .sequel import Sequel
 from .connect import PGConnectionFactory
 from ...utils.logger import exception_handler
+from ..config import DBCredentials
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 
 
+# --------------------------------------------------------------------------- #
+class Response:
+    """Contains response data from database commands."""
+
+    def __init__(self, cursor=None, fetchone=None, fetchall=None,
+                 description=None, rowcount: int = 0):
+        self.cursor = cursor
+        self.fetchall = fetchall
+        self.rowcount = rowcount
+        self.description = description
+
+
+# --------------------------------------------------------------------------- #
 class Database(ABC):
     """Abstract base class for database administration and access classes."""
 
-    def __init__(self, credentials: dict, autocommit: bool = True):
-        self._credentials = credentials
-        self._autocommit = autocommit
-        self._connection = None
-        self._cursor = None
-        self.connect()
-
     @exception_handler()
-    def connect(self) -> None:
-        PGConnectionFactory.initialize(self._credentials)
-        self._connection = PGConnectionFactory.get_connection()
-        self._connection.set_session(autocommit=self._autocommit)
+    def _execute(self, sequel: Sequel, connection) -> int:
+        cursor = connection.cursor()
+        response_cursor = cursor.execute(sequel.cmd, sequel.params)
+        response_description = cursor.description
+        response_rowcount = cursor.rowcount
 
-    @exception_handler()
-    def connection(self):
-        return self._connection
+        try:
+            response_fetchall = cursor.fetchall()
+        except psycopg2.ProgrammingError:
+            response_fetchall = None
 
-    @exception_handler()
-    def cursor(self):
-        return self._connection.cursor()
-
-    @exception_handler()
-    def commit(self) -> None:
-        self._connection.commit()
-
-    @exception_handler()
-    def close(self, connection=None) -> None:
-        if connection:
-            PGConnectionFactory.return_connection(connection)
-        else:
-            PGConnectionFactory.return_connection(self._connection)
-        self._connection = None
-
-    @exception_handler()
-    def close_all(self) -> None:
-        PGConnectionFactory.close_all()
-        self._connection = None
-
-    @exception_handler()
-    def _read(self, sequel: Sequel) -> int:
-        if not self._connection:
-            self._connect()
-        self._cursor = self._connection.cursor()
-        self._cursor.execute(sequel.cmd, sequel.params)
-        response = self._cursor.fetchall()
-        self._cursor.close()
-        logger.info(sequel.description)
-        return response
-
-    @exception_handler()
-    def _process_ddl(self, filepath: str) -> int:
-        """Creates tables using SQL in filepath."""
-        if not self._connection:
-            self._connect()
-        self._connection.set_session(autocommit=True)
-
-        with self._connection.cursor() as cursor:
-            cursor.execute(open(filepath, "r").read())
-            response = cursor.rowcount
-
-        cursor.close()
-        self._connection.set_session(autocommit=self._autocommit)
-
-        logger.info("Created {} tables.".format(response))
-        return response
-
-    @exception_handler()
-    def _modify(self, sequel: Sequel) -> int:
-        if not self._connection:
-            self._connect()
-        cursor = self._connection.cursor()
-        cursor.execute(sequel.cmd, sequel.params)
-        response = cursor.rowcount
+        response = Response(cursor=response_cursor,
+                            fetchall=response_fetchall,
+                            description=response_description,
+                            rowcount=response_rowcount)
         cursor.close()
         logger.info(sequel.description)
         return response
 
-    @abstractmethod
-    def create(self, *args, **kwargs) -> Union[any]:
-        pass
+    @exception_handler()
+    def _execute_ddl(self, sequel: Sequel, connection) -> int:
+        """Processes SQL DDL commands from file."""
 
-    def read(self, *args, **kwargs) -> Union[any]:
-        pass
-
-    def update(self, *args, **kwargs) -> Union[any]:
-        pass
-
-    @abstractmethod
-    def delete(self, *args, **kwargs) -> Union[any]:
-        pass
+        with connection.cursor() as cursor:
+            cursor.execute(open(sequel.params, "r").read())
+        cursor.close()
+        logger.info(sequel.description)

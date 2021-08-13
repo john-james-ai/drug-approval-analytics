@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Tuesday, August 10th 2021, 4:03:47 am                            #
+# Modified : Thursday, August 12th 2021, 9:39:29 pm                           #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -29,6 +29,7 @@ from ...utils.logger import exception_handler
 from .sequel import AdminSequel, TableSequel, UserSequel
 from .connect import SAConnectionFactory
 from .base import Database
+from ..config import DBCredentials
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 
@@ -41,18 +42,25 @@ logger = logging.getLogger(__name__)
 class DBAdmin(Database):
     """Database administration class."""
 
-    def __init__(self, credentials: dict, autocommit: bool = True):
-        super(DBAdmin, self).__init__(credentials=credentials,
-                                      autocommit=autocommit)
+    def __init__():
+        """Database Administration class
+
+        CRUD operations for databases and tables.
+
+        Dependencies:
+            AdminSequel (Sequel): Class serving Sequel objects containing
+                parameterized SQL statements.
+
+        """
         self._sequel = AdminSequel()
 
     @exception_handler()
-    def create(self, name: str) -> None:
+    def create_database(self, name: str, connection) -> None:
         """Creates a database
 
         Arguments
-            connection (psycopg2.connection): Connection to postgres database.
             name (str): The name of the database.
+            connection (Psycopg2 Database Connection)
 
         Raises:
             ERROR: user 'username' is not allowed to create/drop databases
@@ -63,51 +71,56 @@ class DBAdmin(Database):
 
         """
 
-        sequel = self._sequel.create(name)
-        self._modify(sequel)
-
-    @exception_handler()
-    def exists(self, name: str) -> None:
-        """Checks existance of a named database.
-
-        Arguments
-            connection (psycopg2.connection): Connection to postgres database.
-            name (str): Name of database to check.
-
-        """
-        sequel = self._sequel.exists(name)
-        response = self._read(sequel)[0][0]
+        sequel = self._sequel.create_database(name)
+        response = self._execute(connection, sequel)
         return response
 
     @exception_handler()
-    def terminate_database_processes(self, name: str) -> None:
+    def database_exists(self, name: str, connection) -> None:
+        """Checks existance of a named database.
+
+        Arguments
+            name (str): Name of database to check.
+            connection (Psycopg2 Database Connection)
+
+        """
+        sequel = self._sequel.database_exists(name)
+        response = self._execute(sequel, connection)
+        if response.fetchall:
+            return response.fetchall[0][0]
+        else:
+            return False
+
+    @exception_handler()
+    def terminate_database_processes(self, name: str, connection) -> None:
         """Terminates activity on a database.
 
         Arguments
-            connection (psycopg2.connection): Connect to the database
             name (str): The name of the database to be dropped.
+            connection (Psycopg2 Database Connection)
 
         """
 
-        sequel = self._sequel.terminate(name)
-        self._modify(sequel)
+        sequel = self._sequel.terminate_database(name)
+        response = self._execute(connection, sequel)
+        return response
 
     @exception_handler()
-    def delete(self, name: str) -> None:
+    def delete_database(self, name: str, connection) -> None:
         """Drops a database if it exists.
 
         Arguments
-            connection (psycopg2.connection): Connect to the database
             name (str): The name of the database to be dropped.
+            connection (Psycopg2 Database Connection)
 
         """
 
-        self._connection.set_session(autocommit=True)
-        sequel = self._sequel.delete(name)
-        self._modify(sequel)
+        sequel = self._sequel.delete_database(name)
+        response = self._execute(sequel, connection)
+        return response
 
     @exception_handler()
-    def backup(self, dbname: str, filepath: str) -> None:
+    def backup_database(self, dbname: str, filepath: str) -> None:
         """Backs up database to the designated filepath
 
         Arguments
@@ -122,7 +135,7 @@ class DBAdmin(Database):
         DBNAME = dbname
 
         command = ['pg_dump',
-                   '--dbname=postgresql://{}:{}@{}:{}/{}'.format(USER,
+                   '--dbname=Psycopg2ql://{}:{}@{}:{}/{}'.format(USER,
                                                                  PASSWORD,
                                                                  HOST,
                                                                  PORT,
@@ -137,7 +150,7 @@ class DBAdmin(Database):
             DBNAME, filepath))
 
     @exception_handler()
-    def restore(self, dbname: str, filepath: str) -> None:
+    def restore_database(self, dbname: str, filepath: str) -> None:
 
         USER = self._credentials['user']
         HOST = self._credentials['host']
@@ -147,7 +160,7 @@ class DBAdmin(Database):
 
         command = ['pg_restore',
                    '--no-owner',
-                   '--dbname=postgresql://{}:{}@{}:{}/{}'.format(USER,
+                   '--dbname=Psycopg2ql://{}:{}@{}:{}/{}'.format(USER,
                                                                  PASSWORD,
                                                                  HOST,
                                                                  PORT,
@@ -180,19 +193,139 @@ class DBAdmin(Database):
 
         return proc.returncode, out, err
 
+    @exception_handler()
+    def create_tables(self, filepath: str, connection) -> None:
+        """Creates one or more tables defined in the designated filepath.
+
+        Arguments:
+            filepath (str): The location of the file containing the DDL.
+            connection (Psycopg2 Database Connection)
+
+        """
+        sequel = self._sequel.create_tables(filepath)
+        self._execute_ddl(sequel, connection)
+
+    @exception_handler()
+    def load_table(self, name: str, data: pd.DataFrame, connection,
+                   schema: str = 'public', **kwargs) \
+            -> None:
+        """Loads a table from a pandas DataFrame object.
+
+        Arguments:
+            name(str): The name of the table.
+            schema(str): The schema for the table.
+            data(pd.DataFrame): DataFrame containing the data
+            connection(SAConnection): SQLAlchemy connection.
+            kwargs(dict): Arguments passed to pandas.
+
+        Raises
+            ValueError: If the table already exists and the
+                if_exists parameter = 'fail'.
+        """
+
+        data.to_sql(name=name, con=connection, schema=schema,
+                    if_exists='append', **kwargs)
+
+    @exception_handler()
+    def table_exists(self, name: str, connection,
+                     schema: str = 'public') -> None:
+        """Checks existance of a named database.
+
+        Arguments
+            name(str): Name of database to check.
+            connection (Psycopg2 Database Connection)
+            schema (str): The namespace for the table.
+
+        """
+
+        sequel = self._sequel.table_exists(name, schema)
+        response = self._execute(sequel, connection)
+
+        if response.fetchall:
+            return response.fetchall[0][0]
+        else:
+            return False
+
+    @exception_handler()
+    def delete_tables(self, filepath: str, connection) -> None:
+        """Deletes one or more tables by ddl defined in the designated filepath.
+
+        Arguments:
+            filepath (str): The location of the file containing the DDL.
+            connection (Psycopg2 Database Connection)
+
+        """
+        sequel = self._sequel.delete_tables(filepath)
+        self._execute_ddl(sequel, connection)
+
+    @exception_handler()
+    def column_exists(self, name: str, column: str, connection,
+                      schema: str = 'public') -> None:
+        """Checks existance of a named database.
+
+        Arguments
+            name (str): Name of table to check.
+            column (str): The column to check.
+            connection (Psycopg2 Database Connection)
+            schema (str): The namespace for the table.
+
+        """
+
+        sequel = self._sequel.column_exists(name, schema, column)
+        response = self._execute(sequel, connection)
+        if response.fetchall:
+            return response.fetchall[0][0]
+        else:
+            return False
+
+    @exception_handler()
+    @property
+    def tables(self, name: str, connection, schema: str = 'public') -> None:
+        """Checks existance of a named database.
+
+        Arguments
+            name (str): Name of database to check.
+            connection (Psycopg2 Database Connection)
+            schema (str): Schema for table. Defaults to public
+
+        """
+        sequel = self._sequel.tables(schema)
+        response = self._execute(sequel, connection)
+        tablelist = []
+        for table in response.fetchall:
+            tablelist.append(table)
+        return tablelist
+
+    @property
+    @exception_handler()
+    def columns(self, name: str, connection,
+                schema: str = 'public') -> None:
+        """Return the column names for table.
+
+        Arguments
+            name(str): Name of table
+            connection (Psycopg2 Database Connection)
+            schema (str): The namespace for the table.
+
+        """
+
+        sequel = self._sequel.get_columns(name, schema)
+        response = self._execute(sequel, connection)
+
+        return response.fetchall
 
 # --------------------------------------------------------------------------- #
 #                           USER ADMINISTRATION                               #
 # --------------------------------------------------------------------------- #
+
+
 class UserAdmin(Database):
 
-    def __init__(self, credentials: dict, autocommit: bool = True):
-        super(UserAdmin, self).__init__(credentials=credentials,
-                                        autocommit=autocommit)
+    def __init__(self):
         self._sequel = UserSequel()
 
     @exception_handler()
-    def create(self, name: str) -> None:
+    def create(self, name: str, password: str, connection) -> None:
         """Creates a user for the connected database.
 
         Arguments:
@@ -200,11 +333,11 @@ class UserAdmin(Database):
             name (str): The username
 
         """
-        sequel = self._sequel.create(name)
-        self._modify(sequel)
+        sequel = self._sequel.create_user(name, password)
+        self._execute(sequel, connection)
 
     @exception_handler()
-    def exists(self, name: str) -> None:
+    def exists(self, name: str, connection) -> None:
         """Creates a user for the connected database.
 
         Arguments:
@@ -212,12 +345,15 @@ class UserAdmin(Database):
             name (str): The username
 
         """
-        sequel = self._sequel.exists(name)
-        response = self._read(sequel)[0][0]
-        return response
+        sequel = self._sequel.user_exists(name)
+        response = self._execute(sequel, connection)
+        if response.fetchall:
+            return response.fetchall[0][0]
+        else:
+            return False
 
     @exception_handler()
-    def delete(self, name: str) -> None:
+    def delete(self, name: str, connection) -> None:
         """Creates a user for the connected database.
 
         Arguments:
@@ -225,11 +361,11 @@ class UserAdmin(Database):
             name (str): The username
 
         """
-        sequel = self._sequel.delete(name)
-        self._modify(sequel)
+        sequel = self._sequel.delete_user(name)
+        self._execute(sequel, connection)
 
     @exception_handler()
-    def grant(self, name: str, dbname: str) -> None:
+    def grant(self, name: str, dbname: str, connection) -> None:
         """Grants user privileges to database.
 
         Arguments:
@@ -238,11 +374,11 @@ class UserAdmin(Database):
             dbname (str): The name of the database
         """
 
-        sequel = self._sequel.create(name, dbname)
-        self._modify(sequel)
+        sequel = self._sequel.grant_user(name, dbname)
+        self._execute(sequel, connection)
 
     @exception_handler()
-    def revoke(self, name: str, dbname: str) -> None:
+    def revoke(self, name: str, dbname: str, connection) -> None:
         """Revokes user privileges to database.
 
         Arguments:
@@ -251,109 +387,5 @@ class UserAdmin(Database):
             dbname (str): The name of the database
         """
 
-        sequel = self._sequel.revoke(name, dbname)
-        self._modify(sequel)
-
-
-# --------------------------------------------------------------------------- #
-#                          TABLE ADMINISTRATION                               #
-# --------------------------------------------------------------------------- #
-class TableAdmin(Database):
-
-    def __init__(self, credentials: dict, autocommit: bool = True):
-        super(TableAdmin, self).__init__(credentials=credentials,
-                                         autocommit=autocommit)
-        self._sequel = TableSequel()
-        self._sa_connection_factory = SAConnectionFactory
-
-    @exception_handler()
-    def create(self, filepath: str) -> None:
-        """Creates one or more tables defined in the designated filepath.
-
-        Arguments:
-            filepath (str): The location of the file containing the DDL.
-
-        """
-        response = self._process_ddl(filepath)
-        return response
-
-    @exception_handler()
-    def load(self, name: str, data: pd.DataFrame,
-             schema: str = 'public', **kwargs) \
-            -> None:
-        """Loads a table from a pandas DataFrame object.
-
-        Arguments:
-            name(str): The name of the table.
-            schema(str): The schema for the table.
-            data(pd.DataFrame): DataFrame containing the data
-            kwargs(dict): Arguments passed to pandas.
-
-        Raises
-            ValueError: If the table already exists and the
-                if_exists parameter = 'fail'.
-        """
-        self._sa_connection_factory.initialize(self._credentials)
-        connection = self._sa_connection_factory.get_connection()
-
-        data.to_sql(name=name, con=connection, schema=schema, **kwargs)
-        self._sa_connection_factory.return_connection(connection)
-
-    @exception_handler()
-    def exists(self, name: str,
-               schema: str = 'public') -> None:
-        """Checks existance of a named database.
-
-        Arguments
-            name(str): Name of database to check.
-            schema (str): The namespace for the table.
-
-        """
-
-        sequel = self._sequel.exists(name, schema)
-        response = self._read(sequel)
-        return response
-
-    @exception_handler()
-    def delete(self, name: str, schema: str = 'public') \
-            -> None:
-        """Drops the designated table
-
-        Arguments
-            name(str): The name of the table to be dropped.
-            schema (str): The namespace for the table.
-
-        """
-        sequel = self._sequel.delete(name, schema)
-        self._modify(sequel)
-
-    @exception_handler()
-    def column_exists(self, name: str, column: str,
-                      schema: str = 'public') -> None:
-        """Checks existance of a named database.
-
-        Arguments
-            name (str): Name of table to check.
-            column (str): The column to check.
-            schema (str): The namespace for the table.
-
-        """
-
-        sequel = self._sequel.column_exists(name, schema, column)
-        response = self._read(sequel)[0][0]
-        return response
-
-    @exception_handler()
-    def get_columns(self, name: str,
-                    schema: str = 'public') -> None:
-        """Return the column names for table.
-
-        Arguments
-            name(str): Name of table
-            schema (str): The namespace for the table.
-
-        """
-
-        sequel = self._sequel.get_columns(name, schema)
-        response = self._read(sequel)
-        return response
+        sequel = self._sequel.revoke_user(name, dbname)
+        self._execute(sequel, connection)

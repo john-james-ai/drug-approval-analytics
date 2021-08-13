@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 15th 2021, 5:47:58 pm                             #
-# Modified : Tuesday, August 3rd 2021, 6:19:54 pm                             #
+# Modified : Wednesday, August 11th 2021, 2:52:24 am                          #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -110,6 +110,15 @@ class Config:
         with open(self._filepath, 'w+') as configfile:
             parser.write(configfile)
 
+    def delete_section(self, section: str):
+        """Removes a section from the config file."""
+
+        parser = ConfigParser()
+        parser.read(self._filepath)
+        parser.remove_section(section)
+        with open(self._filepath, 'w+') as configfile:
+            parser.write(configfile)
+
     @property
     def sections(self):
         """Returns a list of all sections in the configuration file."""
@@ -135,20 +144,41 @@ class DBCredentials:
         filepath str: The path to the credentials configuration file.
     """
 
-    filepath = './config/database.cfg'
+    filepath = 'config/database.cfg'
 
     def __init__(self, filepath: str = None) -> None:
         self._filepath = filepath if filepath is not None else \
             DBCredentials.filepath
-        self._credentials = {}
 
-    def set_config(self, dbname: str) -> dict:
-        self._credentials = Config(self._filepath).get_section(dbname)
-        return self
+    def keys(self):
+        return list(self._credentials.keys())
 
-    def get_config(self, dbname: str) -> dict:
-        self.set_config(dbname)
+    def __getitem__(self, key):
+        return self._credentials[key]
+
+    def create(self, name: str, user: str, password: str,
+               host: str = 'localhost', dbname: str = 'rx2m',
+               port: int = 5432) -> None:
+        config = Config(self._filepath)
+        section = name
+        params = {}
+        params['user'] = user
+        params['password'] = password
+        params['host'] = host
+        params['dbname'] = dbname
+        params['port'] = port
+        config.set_section(section=section, params=params)
+
+    def read(self, name: str) -> dict:
+        self.load(name)
         return self._credentials
+
+    def delete(self, name: str) -> None:
+        Config(self._filepath).delete_section(name)
+
+    def load(self, name: str):
+        self._credentials = Config(self._filepath).get_section(name)
+        return self
 
     @property
     def dbname(self):
@@ -170,10 +200,6 @@ class DBCredentials:
     def port(self):
         return self._credentials['port']
 
-    @property
-    def credentials(self):
-        return self._credentials
-
 
 # ----------------------------------------------------------------------------#
 #                            DATA SOURCES                                     #
@@ -181,7 +207,7 @@ class DBCredentials:
 class DataSourceConfig:
     """Access to data source configurations."""
 
-    filepath = './config/datasources.cfg'
+    filepath = '../config/datasources.cfg'
 
     def __init__(self, filepath: str = None) -> None:
         self._filepath = filepath if filepath is not None \
@@ -205,6 +231,8 @@ class DataSourceConfig:
 #                           CONFIGURATIONS                                    #
 # ----------------------------------------------------------------------------#
 # Database credentials
-dba_credentials = DBCredentials().set_config('postgres')
-aact_credentials = DBCredentials().set_config('AACT')
-test_credentials = DBCredentials().set_config('Test')
+dba_credentials = DBCredentials().load('postgres')
+aact_credentials = DBCredentials().load('AACT')
+test_credentials = DBCredentials().load('test')
+test_pg_credentials = DBCredentials().load('test_pg')
+user_credentials = DBCredentials().load('user')

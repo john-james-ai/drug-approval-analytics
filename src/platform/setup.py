@@ -12,93 +12,80 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 23rd 2021, 1:19:20 pm                               #
-# Modified : Thursday, August 5th 2021, 2:11:35 am                            #
+# Modified : Tuesday, August 10th 2021, 7:11:13 pm                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
 """Setup Operations databases."""
+import logging
 
-from .sqllib import operations_tables
-from .database import DBAdmin, UserAdmin, TableAdmin
-from .config import dba_credentials, operator_credentials
-from .sequel import Sequel
+import pandas as pd
+
+from .database.admin import DBAdmin, UserAdmin, TableAdmin
+
 # --------------------------------------------------------------------------- #
+logger = logging.getLogger(__name__)
 
 
-class OperationsBuilder:
+class PlatformBuilder:
     """Builds the operations platform database
 
     Arguments:
         credentials (dict): Credentials for operations database
     """
 
-    def __init__(self, credentials: dict, tables: dict) -> None:
+    def __init__(self, credentials: DBCredentials) -> None:
         self._credentials = credentials
-        self._tables = tables
+        self._dba = DBAdmin(credentials)
+        self._ua = UserAdmin(credentials)
+        self._ta = TableAdmin(credentials)
 
     def build_database(self, name):
-        """Builds the Operations database"""
-        dba = DBAdmin(self._credentials)
+        """Builds the Platform database"""
 
-        if dba.exists(name):
+        if self._dba.exists(name):
             print("Database {} already exists".format(name))
             drop_recreate = input(
                 "Would you like to drop and recreate the database? ['n']"
             )
             if drop_recreate in ['y', 'Y', 'yes', 'YES']:
-                dba.drop(name)
-                dba.create(name)
+                self._dba.delete(name)
+                self._dba.create(name)
         else:
-            dba.create(name)
+            self._dba.create(name)
+        logger.info("Database {} created.".format(name))
 
     def build_user(self, credentials) -> None:
         """Builds the database user with createdb privileges."""
-
-        ua = UserAdmin(self._credentials)
-
-        if ua.exists(credentials.user):
-            print("User {} already exists.".format(credentials.user))
+        print(credentials)
+        if self._ua.exists(credentials['user']):
+            print("User {} already exists.".format(credentials['user']))
             drop_recreate = input(
                 "Would you like to drop and recreate the user? ['n']")
             if drop_recreate in ['y', 'Y', 'yes', 'YES']:
-                ua.drop(credentials.user)
-                ua.create(name=credentials.user,
-                          credentials=credentials, create_db=True)
+                self._ua.drop(credentials['user'])
+                self._ua.create(name=credentials['user'],
+                                credentials=credentials, create_db=True)
         else:
-            ua.create(name=credentials.user,
-                      credentials=self._credentials, create_db=True)
+            self._ua.create(name=credentials['user'],
+                            credentials=self._credentials, create_db=True)
 
-    def build_tables(self):
-        """Creates operations tables."""
-        ta = TableAdmin(self._credentials)
-        for name, command in self._tables.items():
+        self._credentials = credentials
+        self._dba = DBAdmin(credentials)
+        self._ua = UserAdmin(credentials)
+        self._ta = TableAdmin(credentials)
+        logger.info("User {} registered with createdb privileges.")
 
-            # Generate the Sequel object for the table.
-            sql_cmd = Sequel(name=name,
-                             description="Create {} table.".format(name),
-                             cmd=command)
+    def build_metadata(self, filepath):
+        """Creates metadata tables."""
+        self._dba.create(filepath)
+        logger.info("Metadata tables developed.")
 
-            if ta.exists(name):
-                print("Table {} already exists".format(name))
-                drop_recreate = input(
-                    "Would you like to drop and recreate the table? ['n']"
-                )
-                if drop_recreate in ['y', 'Y', 'yes', 'YES']:
-                    ta.drop(name)
-                    ta.create(name, sql_cmd)
-            else:
-                ta.create(name, sql_cmd)
+    def build_datasources(self, filepath):
+        df = pd.DataFrame(filepath, indexcol=0)
+        self._dba.load(name='datasources', data=df)
 
 
-def main():
-    builder = OperationsBuilder(operator_credentials, operations_tables)
-    builder.build_user()
-    builder.build_database()
-    builder.build_tables()
-
-
-if __name__ == '__main__':
-    main()
 # %%
