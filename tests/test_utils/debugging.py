@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Friday, July 30th 2021, 1:03:54 pm                               #
-# Modified : Friday, July 30th 2021, 1:23:37 pm                               #
+# Modified : Friday, August 13th 2021, 3:21:37 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -20,15 +20,19 @@
 # =========================================================================== #
 """Various debugging helper functions and decorators."""
 import functools
+import logging
 # --------------------------------------------------------------------------- #
+logger = logging.getLogger(__name__)
 
 
 def announce(func):
     """Print the function signature and return value"""
     @functools.wraps(func)
     def wrapper_debug(*args, **kwargs):
-        print("\nEntering " + func.__qualname__)
+        enter = "\n\n\t\t\tEntering {}\n\n".format(func.__qualname__)
+        leave = "\n\n\t\t\tLeaving {}\n\n".format(func.__qualname__)
+        logger.debug(enter)
         value = func(*args, **kwargs)
-        print("Leaving " + func.__qualname__)
+        logger.debug(leave)
         return value
     return wrapper_debug

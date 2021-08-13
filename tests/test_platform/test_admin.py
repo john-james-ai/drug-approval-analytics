@@ -12,22 +12,24 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 10th 2021, 1:35:36 am                            #
-# Modified : Wednesday, August 11th 2021, 7:06:43 pm                          #
+# Modified : Friday, August 13th 2021, 6:20:09 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
 import pytest
+import logging
 import pandas as pd
 
-from src.platform.database.admin import DBAdmin, TableAdmin, UserAdmin
+from src.platform.database.admin import DBAdmin, UserAdmin, TableAdmin
 from src.platform.database.access import PGDao
-from src.platform.config import dba_credentials, test_credentials
+from src.platform.database.connect import PGConnectionFactory
+from src.platform.config import test_credentials, dba_credentials
 from src.platform.config import test_pg_credentials
 from tests.test_utils.print import start, end
-from tests import announce
-
+from tests.test_utils.debugging import announce
+logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
 tables = ["datasource", "dataset", "feature", "countstats", "score",
           "prediction", "datasourceevent", "parameter", "featuretransform",
@@ -38,234 +40,178 @@ tables = ["datasource", "dataset", "feature", "countstats", "score",
 class UserAdminTests:
 
     @announce
-    @pytest.mark.useradmin
-    def test_setup(self):
-        dbadmin = DBAdmin(dba_credentials)
-        if dbadmin.exists("test"):
-            dbadmin.delete("test")
-        dbadmin.commit()
-        dbadmin.close()
+    def test_setup(self, dba_connection):
+        connection = dba_connection
+        admin = DBAdmin()
+        admin.delete("test", connection)
 
-        useradmin = UserAdmin(dba_credentials)
-        if useradmin.exists(test_credentials.user):
-            useradmin.revoke(test_credentials.user, test_pg_credentials.dbname)
-            useradmin.delete(test_credentials.user)
-        useradmin.commit()
-        useradmin.close()
+        admin = UserAdmin()
+        if admin.exists(test_pg_credentials.user, connection):
+            admin.revoke(test_pg_credentials.user,
+                         dba_credentials.dbname, connection)
+        admin.delete(test_pg_credentials.user, connection)
+        if admin.exists(test_credentials.user, connection):
+            admin.revoke(test_credentials.user,
+                         dba_credentials.dbname, connection)
+        admin.delete(test_credentials.user, connection)
 
     @announce
     @pytest.mark.useradmin
-    def test_create_user(self):
-        admin = UserAdmin(dba_credentials)
-        if admin.exists(test_credentials.user):
-            admin.revoke(test_credentials.user, dba_credentials.dbname)
-            admin.delete(test_credentials.user)
-            admin.commit()
-        admin.create(test_credentials.user, test_credentials.password)
+    def test_create(self, dba_connection):
+        connection = dba_connection
+        admin = UserAdmin()
+        admin.create(test_pg_credentials.user,
+                     test_pg_credentials.password, connection)
         assert admin.exists(
-            test_credentials.user), "UserAdmin ValueError: User does not exist"
-        admin.commit()
-        admin.close()
+            test_pg_credentials.user, connection), "UserAdmin ValueError: User does not exist"
 
     @announce
     @pytest.mark.useradmin
-    def test_grant_user(self):
-        useradmin = UserAdmin(dba_credentials)
-        useradmin.grant(test_credentials.user, dba_credentials.dbname)
-        useradmin.commit()
-        useradmin.close()
+    def test_grant(self, dba_connection, test_pg_connection):
+        connection = dba_connection
+        useradmin = UserAdmin()
+        useradmin.grant(test_pg_credentials.user,
+                        dba_credentials.dbname, connection)
 
         # This should succeed
-        dbadmin = DBAdmin(test_pg_credentials)
-        dbadmin.create(test_credentials.dbname)
-        assert dbadmin.exists(test_credentials.dbname), """GrantUserError: Was
+        connection = test_pg_connection
+        dbadmin = DBAdmin()
+        dbadmin.create("test", connection)
+        assert dbadmin.exists(test_pg_credentials.dbname, connection), """GrantUserError: Was
         not able to create database"""
-        dbadmin.commit()
-        dbadmin.close()
-
-        # Should be able to connect to test
-        dbadmin = DBAdmin(test_credentials)
-        assert dbadmin.exists(test_credentials.dbname), """GrantUserError:
-        Not able to confirm existence of test db"""
-        dbadmin.commit()
-        dbadmin.close()
 
     @announce
     @pytest.mark.useradmin
-    def test_user_teardown(self):
-        dbadmin = DBAdmin(dba_credentials)
-        if dbadmin.exists("test"):
-            dbadmin.delete("test")
-        dbadmin.commit()
-        dbadmin.close()
+    def test_user_connection(self, dba_connection, test_connection):
 
-        useradmin = UserAdmin(dba_credentials)
-        if useradmin.exists(test_credentials.user):
-            useradmin.revoke(test_credentials.user, test_pg_credentials.dbname)
-            useradmin.delete(test_credentials.user)
-
-        end(self)
+        # Should be able to connect to test
+        connection = test_connection
+        dbadmin = DBAdmin()
+        assert dbadmin.exists(test_credentials.dbname, connection), """GrantUserError:
+        Not able to confirm existence of test db"""
 
 
-@ pytest.mark.dbadmin
+@pytest.mark.dbadmin
 class DBAdminTests:
 
-    @ announce
-    @ pytest.mark.dbadmin
-    def test_setup(self):
-        dbadmin = DBAdmin(dba_credentials)
-        if dbadmin.exists("test"):
-            dbadmin.delete("test")
+    @announce
+    def test_exists(self, dba_connection):
+        start(self)
+        dbname = "test"
+        # First confirm database exists
+        connection = dba_connection
+        admin = DBAdmin()
+        response = admin.exists(name=dbname, connection=connection)
+        assert response, "Database Exists Error: Expected True"
 
-        admin = UserAdmin(dba_credentials)
-        if admin.exists(test_credentials.user):
-            admin.revoke(test_credentials.user, dba_credentials.dbname)
-            admin.delete(test_credentials.user)
-            admin.commit()
-        admin.create(test_credentials.user, test_credentials.password)
-        assert admin.exists(
-            test_credentials.user), "UserAdmin ValueError: User does not exist"
-        admin.commit()
-        admin.close()
-
-    @ announce
-    @ pytest.mark.dbadmin
-    def test_create_database(self):
-        test = 'test'
-        # First confirm database doesn't exist
-        admin = DBAdmin(test_pg_credentials)
-        response = admin.exists(name=test)
+    @announce
+    def test_delete(self, test_pg_connection):
+        # Create database and confirm existence
+        connection = test_pg_connection
+        dbname = "test"
+        admin = DBAdmin()
+        admin.delete(name=dbname, connection=connection)
+        response = admin.exists(name=dbname, connection=connection)
         assert not response, "Database Exists Error: Expected False"
 
+    @announce
+    def test_create(self, test_pg_connection):
+        connection = test_pg_connection
+        dbname = "test"
         # Create database and confirm existence
-        admin.create(name=test)
-        response = admin.exists(name=test)
+        admin = DBAdmin()
+        admin.create(name=dbname, connection=connection)
+        response = admin.exists(name=dbname, connection=connection)
         assert response, "Database Exists Error: Expected True"
-
-    @ announce
-    def test_delete_database(self):
-        # First confirm database does exist
-        test = 'test'
-        admin = DBAdmin(test_pg_credentials)
-        response = admin.exists(name=test)
-        assert response, "Database Exists Error: Expected True"
-
-        # Create database and confirm existence
-        admin.delete(name=test)
-        response = admin.exists(name=test)
-        assert not response, "Database Exists Error: Expected False"
-
-    def test_tables(self):
-        dbname = 'test'
-        # Create database and confirm existence
-        dbadmin = DBAdmin(test_pg_credentials)
-        dbadmin.delete(name=dbname)
-        dbadmin.commit()
-        dbadmin.create(name=dbname)
-        dbadmin.commit()
-        response = dbadmin.exists(name=dbname)
-        dbadmin.close()
-        assert response, "Database Exists Error: Expected True"
-
-        # Confirm table does not exist
-        admin = TableAdmin(test_credentials)
-        for table in tables:
-            response = admin.exists(table)
-            assert not response, "TableError. Expected False Existence"
-
-        # Create metadata tables
-        filepath = "src/platform/metadata/metadata_table_create.sql"
-        tadmin = TableAdmin(test_credentials)
-        tadmin.create(filepath=filepath)
-        tadmin.commit()
-
-        # Confirm table does exist
-        admin = TableAdmin(test_credentials)
-        for table in tables:
-            response = admin.exists(table)
-            assert response, "TableError. Expected False Existence"
-
-        # Get list of tables
-        dbadmin = DBAdmin(test_credentials)
-        tablelist = dbadmin.tables(test_credentials.dbname)
-        assert len(tablelist) == 11, print(tablelist)
-
-    def test_database_teardown(self):
-        dbadmin = DBAdmin(dba_credentials)
-        if dbadmin.exists("test"):
-            dbadmin.delete("test")
-        dbadmin.commit()
-
-        useradmin = UserAdmin(dba_credentials)
-        if useradmin.exists(test_credentials.user):
-            useradmin.revoke(test_credentials.user, test_pg_credentials.dbname)
-            useradmin.delete(test_credentials.user)
-
-        end(self)
 
 
 class TableAdminTests:
 
-    def test_setup(self):
-        start(self)
-        dbadmin = DBAdmin(dba_credentials)
-        if dbadmin.exists("test"):
-            dbadmin.delete("test")
-        dbadmin.commit()
-        dbadmin.close()
+    @announce
+    # def test_setup(self, test_pg_connection):
+    #     connection = test_pg_connection
+    #     admin = DBAdmin()
+    #     # Confirm tables are deleted
+    #     for table in tables:
+    #         admin.delete(table, connection=connection)
+    #         connection.commit()
+    #         alive = admin.exists(
+    #             table, connection)
+    #         assert not alive, "TableError. Expected False Existence"
+    #     admin.delete("test", connection)
+    #     assert not admin.exists("test", connection), "Test should be gone"
+    @announce
+    def test_delete(self, dba_connection):
+        connection = dba_credentials
+        admin = TableAdmin()
+        # Confirm table does exist
+        for table in tables:
+            admin.delete(table, connection=connection)
+            connection.commit()
+            alive = admin.exists(table, connection)
+            assert not alive, "TableError. Expected False Existence"
 
-        admin = UserAdmin(dba_credentials)
-        if admin.exists(test_credentials.user):
-            admin.revoke(test_credentials.user, dba_credentials.dbname)
-            admin.delete(test_credentials.user)
-            admin.commit()
-        admin.create(test_credentials.user, test_credentials.password)
-        assert admin.exists(
-            test_credentials.user), "UserAdmin ValueError: User does not exist"
+    @announce
+    def test_tables(self, test_pg_connection):
+        connection = test_pg_connection
 
-        admin = DBAdmin(test_pg_credentials)
-        admin.create(name="test")
-        response = admin.exists(name="test")
-        assert response, "Database Exists Error: Expected True"
+        # Create metadata tables
+        filepath = "src/platform/metadata/metadata_table_create.sql"
+        tadmin = TableAdmin()
+        tadmin.create(filepath=filepath, connection=connection)
+
+        # Confirm table does exist
+        for table in tables:
+            response = tadmin.exists(table, connection=connection)
+            assert not response, "TableError. Expected True Existence"
+
+        # Get list of tables
+        tablelist = tadmin.tables(
+            test_pg_credentials.dbname, connection=connection)
+        assert len(tablelist) == 11, print(tablelist)
 
     @ announce
-    def test_create_table(self):
+    def test_create(self, test_pg_connection):
         # Confirm table does not exist
-        admin = TableAdmin(test_credentials)
+        connection = test_pg_connection
+        admin = DBAdmin()
         for table in tables:
-            response = admin.exists(table)
+            response = admin.exists(table, connection)
             assert not response, print(
                 "TableError. Expected False Existence", response)
 
         # Create table and confirm existence
         filepath = "src/platform/metadata/metadata_table_create.sql"
-        admin.create(filepath=filepath)
+        admin.create(filepath=filepath, connection=connection)
         for table in tables:
-            response = admin.exists(table)
+            response = admin.exists(table, connection)
             assert response, print(
                 "TableError. Expected True Existence", response)
 
     @ announce
-    def test_delete_table(self):
+    def test_delete(self, test_connection):
         # Confirm table does exist
-        admin = TableAdmin(test_credentials)
+        connection = test_connection
+        admin = DBAdmin()
         for table in tables:
-            response = admin.exists(table)
+            response = admin.exists(table, connection)
             assert response, print(
                 "TableError. Expected True Existence", response)
 
-        # Delete all table and confirm existence
+        # Delete all tables and confirm existence
         filepath = "src/platform/metadata/metadata_table_drop.sql"
-        admin.delete(filepath=filepath)
+        admin.batch_delete(filepath=filepath, connection=connection)
         for table in tables:
-            response = admin.exists(table)
+            response = admin.exists(table, connection)
             assert not response, print(
                 "TableError. Expected False Existence", response)
 
     @ announce
-    def test_load_table(self):
-        admin = TableAdmin(test_credentials)
+    def test_load(self, test_connection):
         # Ensure the table doesn't exist
+        connection = test_connection
+        admin = DBAdmin()
+
         response = admin.exists("datasource")
         assert not response,\
             print("TestLoadTableError: datasource should not exist.", response)
@@ -273,43 +219,38 @@ class TableAdminTests:
         # Recreate the table
         filepath = "./data/metadata/datasources.xlsx"
         df = pd.read_excel(filepath, index_col=0)
-        admin.load(name="datasource", data=df)
-        admin.commit()
-        admin.close()
+        admin.load(name="datasource", data=df, connection=connection)
+
         df.reset_index(inplace=True)
         assert df.shape[0] == 10, print(df, df.columns)
         assert df.shape[1] == 17, print(df, df.columns)
 
         # Get an access object to read the table
-        access = PGDao(test_credentials)
-        df2 = access.read(table="datasource")
+
+        access = PGDao()
+        df2 = access.read(table="datasource", connection=connection)
         assert isinstance(
             df2, pd.DataFrame), "DAOError: Get didn't return a dataframe"
         assert df2.shape[0] == 10, print(df2, df2.columns)
         assert df2.shape[1] == 17, print(df2, df2.columns)
 
     @ announce
-    def test_column_exists(self):
-        admin = TableAdmin(test_credentials)
-        response = admin.column_exists(name='datasource', column='lifecycle')
+    def test_column_exists(self, test_connection):
+        connection = test_connection
+        admin = DBAdmin()
+        response = admin.column_exists(
+            name='datasource', column='lifecycle', connection=connection)
         assert response, "Table error. Column exists failure"
 
     @ announce
-    def test_get_columns(self):
-        admin = TableAdmin(test_credentials)
-        response = admin.get_columns(name='datasource')
+    def test_get_columns(self, test_connection):
+        connection = test_connection
+        admin = DBAdmin()
+        response = admin.get_columns(
+            name='datasource', connection=connection)
         assert len(response) == 17, print(response)
 
-    @announce
-    def test_tables_teardown(self):
-        dbadmin = DBAdmin(dba_credentials)
-        if dbadmin.exists("test"):
-            dbadmin.delete("test")
-        dbadmin.commit()
-
-        useradmin = UserAdmin(dba_credentials)
-        if useradmin.exists(test_credentials.user):
-            useradmin.revoke(test_credentials.user, test_pg_credentials.dbname)
-            useradmin.delete(test_credentials.user)
-
+    @ announce
+    def test_tables_teardown(self, tear_down):
+        tear_down
         end(self)

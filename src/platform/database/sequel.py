@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Thursday, August 12th 2021, 9:36:18 pm                           #
+# Modified : Friday, August 13th 2021, 2:33:14 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -60,6 +60,7 @@ class AdminSequelBase(ABC):
     def exists(self, name: str) -> Sequel:
         pass
 
+
 # --------------------------------------------------------------------------- #
 #                          ACCESS SEQUEL BASE                                 #
 # --------------------------------------------------------------------------- #
@@ -93,9 +94,9 @@ class AccessSequelBase(ABC):
 # --------------------------------------------------------------------------- #
 #                             DATABASE SEQUEL                                 #
 # --------------------------------------------------------------------------- #
-class AdminSequel(AdminSequelBase):
+class DatabaseSequel(AdminSequelBase):
 
-    def create_database(self, name: str) -> Sequel:
+    def create(self, name: str) -> Sequel:
         sequel = Sequel(
             name="create_database",
             description="Created {} database".format(name),
@@ -105,7 +106,19 @@ class AdminSequel(AdminSequelBase):
 
         return sequel
 
-    def delete_database(self, name: str) -> Sequel:
+    def exists(self, name: str) -> Sequel:
+        sequel = Sequel(
+            name="database exists",
+            description="Checked existence of {} database.".format(name),
+            cmd=sql.SQL("""SELECT EXISTS(
+                    SELECT datname FROM pg_catalog.pg_database
+                    WHERE lower(datname) = lower(%s));"""),
+            params=tuple((name,))
+        )
+
+        return sequel
+
+    def delete(self, name: str) -> Sequel:
         sequel = Sequel(
             name="drop database",
             description="Dropped {} database if it exists.".format(name),
@@ -130,23 +143,14 @@ class AdminSequel(AdminSequelBase):
 
         return sequel
 
-    def database_exists(self, name: str) -> Sequel:
-        sequel = Sequel(
-            name="database exists",
-            description="Checked existence of {} database.".format(name),
-            cmd=sql.SQL("""SELECT EXISTS(
-                    SELECT datname FROM pg_catalog.pg_database
-                    WHERE lower(datname) = lower(%s));"""),
-            params=tuple((name,))
-        )
-
-        return sequel
-
 # --------------------------------------------------------------------------- #
 #                              TABLES SEQUEL                                  #
 # --------------------------------------------------------------------------- #
 
-    def create_tables(self, filepath) -> Sequel:
+
+class TableSequel(AdminSequelBase):
+
+    def create(self, filepath) -> Sequel:
         sequel = Sequel(
             name="create_tables",
             description="Created tables from SQL ddl in {}".format(filepath),
@@ -155,16 +159,7 @@ class AdminSequel(AdminSequelBase):
         )
         return sequel
 
-    def delete_tables(self, filepath) -> Sequel:
-        sequel = Sequel(
-            name="delete_tables",
-            description="Drop tables from SQL ddl in {}".format(filepath),
-            cmd=None,
-            params=filepath
-        )
-        return sequel
-
-    def table_exists(self, name: str, schema: str) -> Sequel:
+    def exists(self, name: str, schema: str) -> Sequel:
         sequel = Sequel(
             name="table_exists",
             description="Checked existence of table {}".format(name),
@@ -177,6 +172,26 @@ class AdminSequel(AdminSequelBase):
             params=(schema, name,)
         )
 
+        return sequel
+
+    def delete(self, name: str, schema: str) -> Sequel:
+        sequel = Sequel(
+            name="delete_table",
+            description="Drop table {}.{}".format(schema, name),
+            cmd=sql.SQL("DROP TABLE IF EXISTS {}.{};").format(
+                sql.Identifier(schema),
+                sql.Identifier(name)
+            )
+        )
+        return sequel
+
+    def batch_delete(self, filepath) -> Sequel:
+        sequel = Sequel(
+            name="delete_tables",
+            description="Drop tables from SQL ddl in {}".format(filepath),
+            cmd=None,
+            params=filepath
+        )
         return sequel
 
     def column_exists(self, name: str, schema: str, column: str) -> Sequel:
@@ -253,7 +268,7 @@ class AdminSequel(AdminSequelBase):
 
 class UserSequel(AdminSequelBase):
 
-    def create_user(self, name: str, password: str) -> Sequel:
+    def create(self, name: str, password: str) -> Sequel:
         sequel = Sequel(
             name="create_user",
             description="Created user {}".format(name),
@@ -266,7 +281,7 @@ class UserSequel(AdminSequelBase):
 
         return sequel
 
-    def delete_user(self, name: str) -> Sequel:
+    def delete(self, name: str) -> Sequel:
         sequel = Sequel(
             name="drop_user",
             description="Dropped user {}".format(name),
@@ -276,7 +291,7 @@ class UserSequel(AdminSequelBase):
 
         return sequel
 
-    def user_exists(self, name: str) -> Sequel:
+    def exists(self, name: str) -> Sequel:
         sequel = Sequel(
             name="user_exists",
             description="Checked existence of user {}".format(name),
@@ -287,7 +302,7 @@ class UserSequel(AdminSequelBase):
 
         return sequel
 
-    def grant_user(self, name: str, dbname: str) -> Sequel:
+    def grant(self, name: str, dbname: str) -> Sequel:
         sequel = Sequel(
             name="grant",
             description="Granted privileges on database {} to {}"
@@ -300,7 +315,7 @@ class UserSequel(AdminSequelBase):
 
         return sequel
 
-    def revoke_user(self, name: str, dbname: str) -> Sequel:
+    def revoke(self, name: str, dbname: str) -> Sequel:
         sequel = Sequel(
             name="revoke",
             description="Revoked privileges on database {} from {}"

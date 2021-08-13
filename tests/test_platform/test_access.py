@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, August 8th 2021, 8:31:22 am                              #
-# Modified : Wednesday, August 11th 2021, 5:37:57 am                          #
+# Modified : Friday, August 13th 2021, 3:16:39 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -23,25 +23,19 @@ import pandas as pd
 
 from src.platform.database.access import PGDao
 from src.platform.config import dba_credentials
-from tests import announce
+from tests.test_utils.debugging import announce
 # -----------------------------------------------------------------------------#
 
 
 @pytest.mark.access
 class AccessTests:
-
-    @announce
-    def test_setup(self, build_test_database, build_test_table):
-        self._access = PGDao(dba_credentials)
-        build_test_database
-        build_test_table
-
     @announce
     def test_get_all_columns_all_rows(self, build_test_database,
                                       build_test_table):
-
-        access = PGDao(dba_credentials)
-        df = access.read(table="source")
+        connection = build_test_database
+        build_test_table
+        access = PGDao()
+        df = access.read(table="datasource", connection=connection)
         assert isinstance(
             df, pd.DataFrame), "DAOError: Get didn't return a dataframe"
         assert df.shape[0] == 10, "DAOError: Dataframe has no rows"
@@ -50,11 +44,12 @@ class AccessTests:
     @announce
     def test_get(self, build_test_database,
                  build_test_table):
-        build_test_database
+        connection = build_test_database
         build_test_table
-        access = PGDao(dba_credentials)
-        df = access.read(table="source", columns=["version", "name", "uris"],
-                         where_key="type", where_value='metadata')
+        access = PGDao()
+        df = access.read(table="datasource", columns=["version", "name", "uris"],
+                         where_key="type", where_value='metadata',
+                         connection=connection)
         assert isinstance(
             df, pd.DataFrame), "DAOError: Get didn't return a dataframe"
         assert df.shape[0] == 2, "DAOError: Dataframe has no rows"
@@ -63,11 +58,11 @@ class AccessTests:
     @announce
     def test_get_all_columns(self, build_test_database,
                              build_test_table):
-        build_test_database
+        connection = build_test_database
         build_test_table
-        access = PGDao(dba_credentials)
-        df = access.read(table="source",  where_key="type",
-                         where_value="metadata")
+        access = PGDao()
+        df = access.read(table="datasource",  where_key="type",
+                         where_value="metadata", connection=connection)
         assert isinstance(
             df, pd.DataFrame), "DAOError: Get didn't return a dataframe"
         assert df.shape[0] == 2, "DAOError: Dataframe has no rows"
@@ -76,10 +71,11 @@ class AccessTests:
     @announce
     def test_get_all_rows(self, build_test_database,
                           build_test_table):
-        build_test_database
+        connection = build_test_database
         build_test_table
-        access = PGDao(dba_credentials)
-        df = access.read(table="source", columns=["version", "name", "uris"])
+        access = PGDao()
+        df = access.read(table="datasource", columns=["version", "name", "uris"],
+                         connection=connection)
         assert isinstance(
             df, pd.DataFrame), "DAOError: Get didn't return a dataframe"
         assert df.shape[0] == 10, "DAOError: Dataframe has no rows"
@@ -92,12 +88,13 @@ class AccessTests:
                    'title', 'description', 'lifecycle']
         values = ['rhythm', 1, 'sound', 'Data Rhythm', 'Bounce data', 21]
 
-        build_test_database
+        connection = build_test_database
         build_test_table
-        access = PGDao(dba_credentials)
+        access = PGDao()
         response = access.create(
-            table="source", columns=columns, values=values)
-        df = access.read(table="source")
+            table="datasource", columns=columns, values=values,
+            connection=connection)
+        df = access.read(table="datasource", connection=connection)
         assert isinstance(
             df, pd.DataFrame), "DAOError: Get didn't return a dataframe"
         assert df.shape[0] == 11, "DAOError: Dataframe has no rows"
@@ -111,13 +108,13 @@ class AccessTests:
     @announce
     def test_update(self, build_test_database,
                     build_test_table):
-        build_test_database
+        connection = build_test_database
         build_test_table
-        access = PGDao(dba_credentials)
-        response = access.update(table="source", column='version', value=99,
-                                 where_key='name', where_value='studies')
-        df = access.read(table="source", columns=["version", "name", "uris"],
-                         where_key="name", where_value='studies')
+        access = PGDao()
+        response = access.update(table="datasource", column='version', value=99,
+                                 where_key='name', where_value='studies', connection=connection)
+        df = access.read(table="datasource", columns=["version", "name", "uris"],
+                         where_key="name", where_value='studies', connection=connection)
         assert isinstance(
             df, pd.DataFrame), "DAOError: Get didn't return a dataframe"
         assert df.shape[0] == 1, "DAOError: Dataframe has no rows"
@@ -129,50 +126,18 @@ class AccessTests:
     @announce
     def test_delete(self, build_test_database,
                     build_test_table):
-        build_test_database
+        connection = build_test_database
         build_test_table
-        access = PGDao(dba_credentials)
-        response = access.delete(table="source",
-                                 where_key="name", where_value='rhythm')
-        df = access.read(table="source")
+        access = PGDao()
+        response = access.delete(table="datasource",
+                                 where_key="name", where_value='rhythm',
+                                 connection=connection)
+        df = access.read(table="datasource", connection=connection)
         assert isinstance(
             df, pd.DataFrame), "DAOError: Get didn't return a dataframe"
         assert df.shape[0] == 10, "DAOError: Dataframe has no rows"
         assert df.shape[1] == 17, "DAOError: Dataframe has no columns"
         assert response.rowcount == 1, "DAOError: No rows updated"
-
-    def test_transaction(self, build_test_database,
-                         build_test_table):
-        build_test_database
-        build_test_table
-        access = PGDao(dba_credentials)
-        # Get current values before update
-        before = access.read(table="source",
-                             columns=["version", "name", "uris"],
-                             where_key="name", where_value='studies')
-        # Start the transaction
-        access.begin()
-        # Perform update
-        response = access.update(table="source", column='version', value=99,
-                                 where_key='name', where_value='studies')
-        assert response.rowcount == 1, "Invalid number of rows updated"
-
-        # Get data mid transaction
-        mid = access.read(table="source", columns=["version", "name", "uris"],
-                          where_key="name", where_value='studies')
-        assert all(before == mid), "TestTransaction ValueError"
-
-        # Commit changes
-        access.commit()
-
-        # Read post commit
-        after = access.read(table="source",
-                            columns=["version", "name", "uris"],
-                            where_key="name", where_value='studies')
-        assert any(after != mid), """TestTransaction ValueError: Update not reflected
-            post commit"""
-        assert after['version'].values == 99, """TestTransaction ValueError:
-        Invalid value post update"""
 
     def test_teardown(self, tear_down):
         tear_down

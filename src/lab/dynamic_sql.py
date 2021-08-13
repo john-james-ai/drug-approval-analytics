@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Saturday, July 24th 2021, 7:52:10 pm                             #
-# Modified : Wednesday, July 28th 2021, 9:46:50 pm                            #
+# Modified : Friday, August 13th 2021, 2:09:21 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -31,7 +31,7 @@ useful here as they are immutable.
 import psycopg2.sql as sql
 
 
-def create_table(name, columns):
+def create(name, columns):
     # name = "mytable"
     # columns = (("col1", "TEXT"), ("col2", "INTEGER"), ...)
     fields = []

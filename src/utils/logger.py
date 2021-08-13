@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Wednesday, July 21st 2021, 9:32:12 pm                            #
-# Modified : Thursday, August 12th 2021, 7:28:24 am                           #
+# Modified : Friday, August 13th 2021, 6:00:39 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -112,10 +112,16 @@ def exception_handler(frame_template: str = LOG_FRAME_TPL,
 
             except Exception as error:
 
+                curframe = inspect.currentframe()
+                calframe = inspect.getouterframes(curframe, 3)
+                caller = calframe[1][3]
+                line = calframe[1][2]
+
                 # log exception information first in case something fails
                 # below
-                logger.error('Exception thrown in %s, %s: %s\n' % (
-                    func.__qualname__,
+                logger.error('Exception thrown in %s, line %d, %s: %s\n' % (
+                    caller,
+                    line,
                     type(error),
                     str(error)))
 

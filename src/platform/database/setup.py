@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Tuesday, August 10th 2021, 7:11:13 pm                            #
+# Modified : Friday, August 13th 2021, 2:03:17 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -117,7 +117,7 @@ def setup(credentials: DBCredentials) -> None:
     """
     pg_connection, sa_connection = get_connections(credentials)
 
-    # create_database(pg_connection)
+    # create(pg_connection)
     # create_clinical_trials_tables(connection)
     # create_drugs_tables(connection)
     # create_biologics_tables(connection)

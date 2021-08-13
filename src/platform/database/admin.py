@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Thursday, August 12th 2021, 9:39:29 pm                           #
+# Modified : Friday, August 13th 2021, 5:38:04 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -26,10 +26,10 @@ import shlex
 import pandas as pd
 
 from ...utils.logger import exception_handler
-from .sequel import AdminSequel, TableSequel, UserSequel
-from .connect import SAConnectionFactory
-from .base import Database
-from ..config import DBCredentials
+from .sequel import DatabaseSequel, UserSequel, TableSequel
+from .connect import SAConnectionFactory, PGConnectionFactory
+from .base import Admin
+
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 
@@ -39,23 +39,25 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
 
 
-class DBAdmin(Database):
+class DBAdmin(Admin):
     """Database administration class."""
 
-    def __init__():
+    def __init__(self):
         """Database Administration class
 
         CRUD operations for databases and tables.
 
         Dependencies:
-            AdminSequel (Sequel): Class serving Sequel objects containing
+            DatabaseSequel (Sequel): Class serving Sequel objects containing
                 parameterized SQL statements.
 
         """
-        self._sequel = AdminSequel()
+        super(DBAdmin, self).__init__()
+        self._sequel = DatabaseSequel()
 
     @exception_handler()
-    def create_database(self, name: str, connection) -> None:
+    def create(self, name: str,
+               connection: PGConnectionFactory) -> None:
         """Creates a database
 
         Arguments
@@ -71,12 +73,13 @@ class DBAdmin(Database):
 
         """
 
-        sequel = self._sequel.create_database(name)
-        response = self._execute(connection, sequel)
+        sequel = self._sequel.create(name)
+        response = self._command.execute(sequel, connection)
         return response
 
     @exception_handler()
-    def database_exists(self, name: str, connection) -> None:
+    def exists(self, name: str,
+               connection: PGConnectionFactory) -> None:
         """Checks existance of a named database.
 
         Arguments
@@ -84,15 +87,16 @@ class DBAdmin(Database):
             connection (Psycopg2 Database Connection)
 
         """
-        sequel = self._sequel.database_exists(name)
-        response = self._execute(sequel, connection)
+        sequel = self._sequel.exists(name)
+        response = self._command.execute(sequel, connection)
         if response.fetchall:
             return response.fetchall[0][0]
         else:
             return False
 
     @exception_handler()
-    def terminate_database_processes(self, name: str, connection) -> None:
+    def terminate_database_processes(self, name: str,
+                                     connection: PGConnectionFactory) -> None:
         """Terminates activity on a database.
 
         Arguments
@@ -102,11 +106,12 @@ class DBAdmin(Database):
         """
 
         sequel = self._sequel.terminate_database(name)
-        response = self._execute(connection, sequel)
+        response = self._command.execute(sequel, connection)
         return response
 
     @exception_handler()
-    def delete_database(self, name: str, connection) -> None:
+    def delete(self, name: str,
+               connection: PGConnectionFactory) -> None:
         """Drops a database if it exists.
 
         Arguments
@@ -114,13 +119,13 @@ class DBAdmin(Database):
             connection (Psycopg2 Database Connection)
 
         """
+        sequel = self._sequel.delete(name)
+        response = self._command.execute(sequel, connection)
 
-        sequel = self._sequel.delete_database(name)
-        response = self._execute(sequel, connection)
         return response
 
     @exception_handler()
-    def backup_database(self, dbname: str, filepath: str) -> None:
+    def backup(self, dbname: str, filepath: str) -> None:
         """Backs up database to the designated filepath
 
         Arguments
@@ -150,7 +155,7 @@ class DBAdmin(Database):
             DBNAME, filepath))
 
     @exception_handler()
-    def restore_database(self, dbname: str, filepath: str) -> None:
+    def restore(self, dbname: str, filepath: str) -> None:
 
         USER = self._credentials['user']
         HOST = self._credentials['host']
@@ -193,8 +198,29 @@ class DBAdmin(Database):
 
         return proc.returncode, out, err
 
+
+# --------------------------------------------------------------------------- #
+#                         TABLE ADMINISTRATION                                #
+# --------------------------------------------------------------------------- #
+class TableAdmin(Admin):
+    """Table administration class."""
+
+    def __init__(self):
+        """Database Administration class
+
+        CRUD operations for databases and tables.
+
+        Dependencies:
+            DatabaseSequel (Sequel): Class serving Sequel objects containing
+                parameterized SQL statements.
+
+        """
+        super(TableAdmin, self).__init__()
+        self._sequel = TableSequel()
+
     @exception_handler()
-    def create_tables(self, filepath: str, connection) -> None:
+    def create(self, filepath: str,
+               connection: PGConnectionFactory) -> None:
         """Creates one or more tables defined in the designated filepath.
 
         Arguments:
@@ -202,12 +228,13 @@ class DBAdmin(Database):
             connection (Psycopg2 Database Connection)
 
         """
-        sequel = self._sequel.create_tables(filepath)
-        self._execute_ddl(sequel, connection)
+        sequel = self._sequel.create(filepath)
+        self._command.execute_ddl(sequel, connection)
 
     @exception_handler()
-    def load_table(self, name: str, data: pd.DataFrame, connection,
-                   schema: str = 'public', **kwargs) \
+    def load(self, name: str, data: pd.DataFrame,
+             connection: SAConnectionFactory,
+             schema: str = 'public', **kwargs) \
             -> None:
         """Loads a table from a pandas DataFrame object.
 
@@ -227,8 +254,9 @@ class DBAdmin(Database):
                     if_exists='append', **kwargs)
 
     @exception_handler()
-    def table_exists(self, name: str, connection,
-                     schema: str = 'public') -> None:
+    def exists(self, name: str,
+               connection: PGConnectionFactory,
+               schema: str = 'public') -> None:
         """Checks existance of a named database.
 
         Arguments
@@ -238,8 +266,8 @@ class DBAdmin(Database):
 
         """
 
-        sequel = self._sequel.table_exists(name, schema)
-        response = self._execute(sequel, connection)
+        sequel = self._sequel.exists(name, schema)
+        response = self._command.execute(sequel, connection)
 
         if response.fetchall:
             return response.fetchall[0][0]
@@ -247,7 +275,9 @@ class DBAdmin(Database):
             return False
 
     @exception_handler()
-    def delete_tables(self, filepath: str, connection) -> None:
+    def delete(self, name: str,
+               connection: PGConnectionFactory,
+               schema: str = 'public') -> None:
         """Deletes one or more tables by ddl defined in the designated filepath.
 
         Arguments:
@@ -255,11 +285,25 @@ class DBAdmin(Database):
             connection (Psycopg2 Database Connection)
 
         """
-        sequel = self._sequel.delete_tables(filepath)
-        self._execute_ddl(sequel, connection)
+        sequel = self._sequel.delete(name, schema)
+        self._command.execute(sequel, connection)
 
     @exception_handler()
-    def column_exists(self, name: str, column: str, connection,
+    def batch_delete(self, filepath: str,
+                     connection: PGConnectionFactory) -> None:
+        """Deletes one or more tables by ddl defined in the designated filepath.
+
+        Arguments:
+            filepath (str): The location of the file containing the DDL.
+            connection (Psycopg2 Database Connection)
+
+        """
+        sequel = self._sequel.batch_delete(filepath)
+        self._command.execute_ddl(sequel, connection)
+
+    @exception_handler()
+    def column_exists(self, name: str, column: str,
+                      connection: PGConnectionFactory,
                       schema: str = 'public') -> None:
         """Checks existance of a named database.
 
@@ -272,15 +316,16 @@ class DBAdmin(Database):
         """
 
         sequel = self._sequel.column_exists(name, schema, column)
-        response = self._execute(sequel, connection)
+        response = self._command.execute(sequel, connection)
         if response.fetchall:
             return response.fetchall[0][0]
         else:
             return False
 
     @exception_handler()
-    @property
-    def tables(self, name: str, connection, schema: str = 'public') -> None:
+    def tables(self, name: str,
+               connection: PGConnectionFactory,
+               schema: str = 'public') -> None:
         """Checks existance of a named database.
 
         Arguments
@@ -290,7 +335,7 @@ class DBAdmin(Database):
 
         """
         sequel = self._sequel.tables(schema)
-        response = self._execute(sequel, connection)
+        response = self._command.execute(sequel, connection)
         tablelist = []
         for table in response.fetchall:
             tablelist.append(table)
@@ -298,7 +343,8 @@ class DBAdmin(Database):
 
     @property
     @exception_handler()
-    def columns(self, name: str, connection,
+    def columns(self, name: str,
+                connection: PGConnectionFactory,
                 schema: str = 'public') -> None:
         """Return the column names for table.
 
@@ -310,7 +356,7 @@ class DBAdmin(Database):
         """
 
         sequel = self._sequel.get_columns(name, schema)
-        response = self._execute(sequel, connection)
+        response = self._command.execute(sequel, connection)
 
         return response.fetchall
 
@@ -319,13 +365,15 @@ class DBAdmin(Database):
 # --------------------------------------------------------------------------- #
 
 
-class UserAdmin(Database):
+class UserAdmin(Admin):
 
     def __init__(self):
+        super(UserAdmin, self).__init__()
         self._sequel = UserSequel()
 
     @exception_handler()
-    def create(self, name: str, password: str, connection) -> None:
+    def create(self, name: str, password: str,
+               connection: PGConnectionFactory) -> None:
         """Creates a user for the connected database.
 
         Arguments:
@@ -333,11 +381,12 @@ class UserAdmin(Database):
             name (str): The username
 
         """
-        sequel = self._sequel.create_user(name, password)
-        self._execute(sequel, connection)
+        sequel = self._sequel.create(name, password)
+        self._command.execute(sequel, connection)
 
     @exception_handler()
-    def exists(self, name: str, connection) -> None:
+    def exists(self, name: str,
+               connection: PGConnectionFactory) -> None:
         """Creates a user for the connected database.
 
         Arguments:
@@ -345,15 +394,16 @@ class UserAdmin(Database):
             name (str): The username
 
         """
-        sequel = self._sequel.user_exists(name)
-        response = self._execute(sequel, connection)
+        sequel = self._sequel.exists(name)
+        response = self._command.execute(sequel, connection)
         if response.fetchall:
             return response.fetchall[0][0]
         else:
             return False
 
     @exception_handler()
-    def delete(self, name: str, connection) -> None:
+    def delete(self, name: str,
+               connection: PGConnectionFactory) -> None:
         """Creates a user for the connected database.
 
         Arguments:
@@ -361,11 +411,12 @@ class UserAdmin(Database):
             name (str): The username
 
         """
-        sequel = self._sequel.delete_user(name)
-        self._execute(sequel, connection)
+        sequel = self._sequel.delete(name)
+        self._command.execute(sequel, connection)
 
     @exception_handler()
-    def grant(self, name: str, dbname: str, connection) -> None:
+    def grant(self, name: str, dbname: str,
+              connection: PGConnectionFactory) -> None:
         """Grants user privileges to database.
 
         Arguments:
@@ -374,11 +425,12 @@ class UserAdmin(Database):
             dbname (str): The name of the database
         """
 
-        sequel = self._sequel.grant_user(name, dbname)
-        self._execute(sequel, connection)
+        sequel = self._sequel.grant(name, dbname)
+        self._command.execute(sequel, connection)
 
     @exception_handler()
-    def revoke(self, name: str, dbname: str, connection) -> None:
+    def revoke(self, name: str, dbname: str,
+               connection: PGConnectionFactory) -> None:
         """Revokes user privileges to database.
 
         Arguments:
@@ -387,5 +439,5 @@ class UserAdmin(Database):
             dbname (str): The name of the database
         """
 
-        sequel = self._sequel.revoke_user(name, dbname)
-        self._execute(sequel, connection)
+        sequel = self._sequel.revoke(name, dbname)
+        self._command.execute(sequel, connection)
