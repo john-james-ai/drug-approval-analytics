@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, August 8th 2021, 8:37:47 am                              #
-# Modified : Friday, August 13th 2021, 8:43:33 am                             #
+# Modified : Friday, August 13th 2021, 9:28:24 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -23,11 +23,20 @@ import logging
 import pytest
 import pandas as pd
 
+from src.platform.database.admin import DBAdmin, TableAdmin
 from src.platform.database.connect import PGConnectionFactory
 from src.platform.database.connect import SAConnectionFactory
 from src.platform.config import pg_login, rx2m_test_login
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
+# --------------------------------------------------------------------------- #
+tables = ["datasourceevent", "featuretransform",
+          "countstats",
+          "score", "model", "trainingevent", "prediction", "parameter", "countstats",
+          "datasource", "feature", "dataset"]
+
+
+dbname = "rx2m_test"
 
 
 @pytest.fixture(scope="class")
