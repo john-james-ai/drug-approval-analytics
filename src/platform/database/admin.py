@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Friday, August 13th 2021, 5:38:04 am                             #
+# Modified : Friday, August 13th 2021, 9:07:01 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -341,11 +341,10 @@ class TableAdmin(Admin):
             tablelist.append(table)
         return tablelist
 
-    @property
     @exception_handler()
-    def columns(self, name: str,
-                connection: PGConnectionFactory,
-                schema: str = 'public') -> None:
+    def get_columns(self, name: str,
+                    connection: PGConnectionFactory,
+                    schema: str = 'public') -> None:
         """Return the column names for table.
 
         Arguments

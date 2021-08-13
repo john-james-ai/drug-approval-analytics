@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, August 9th 2021, 11:44:10 pm                             #
-# Modified : Friday, August 13th 2021, 2:21:45 am                             #
+# Modified : Friday, August 13th 2021, 8:59:02 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -108,10 +108,6 @@ class Access(ABC):
 
     @abstractmethod
     def create(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    def exists(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
         pass
 
     @abstractmethod

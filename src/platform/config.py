@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 15th 2021, 5:47:58 pm                             #
-# Modified : Wednesday, August 11th 2021, 2:52:24 am                          #
+# Modified : Friday, August 13th 2021, 7:42:31 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -231,8 +231,7 @@ class DataSourceConfig:
 #                           CONFIGURATIONS                                    #
 # ----------------------------------------------------------------------------#
 # Database credentials
-dba_credentials = DBCredentials().load('postgres')
-aact_credentials = DBCredentials().load('AACT')
-test_credentials = DBCredentials().load('test')
-test_pg_credentials = DBCredentials().load('test_pg')
-user_credentials = DBCredentials().load('user')
+pg_login = DBCredentials().load('postgres')
+rx2m_login = DBCredentials().load('rx2m')
+rx2m_test_login = DBCredentials().load('rx2m_test')
+aact_login = DBCredentials().load('AACT')

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, June 24th 2021, 11:54:46 am                            #
-# Modified : Tuesday, August 10th 2021, 8:10:41 pm                            #
+# Modified : Friday, August 13th 2021, 6:55:46 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -23,7 +23,7 @@ from pathlib import Path
 import logging
 
 from src.platform.setup import PlatformBuilder
-from src.platform.config import dba_credentials, DBCredentials
+from src.platform.config import pg_login, DBCredentials
 
 # import click
 
@@ -32,7 +32,7 @@ def setup_database(dbname: str, credentials: DBCredentials) -> None:
     print(credentials)
     mdata = "platform/metadata/metadata_table_create.sql"
     dsources = "..data/metadata/datasources.csv"
-    builder = PlatformBuilder(dba_credentials)
+    builder = PlatformBuilder(pg_login)
     builder.build_user(credentials)
     builder.build_database(dbname)
     builder.build_metadata(mdata)
