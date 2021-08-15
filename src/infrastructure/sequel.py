@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Friday, August 13th 2021, 2:33:14 am                             #
+# Modified : Saturday, August 14th 2021, 6:55:33 pm                           #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -335,29 +335,29 @@ class UserSequel(AdminSequelBase):
 class AccessSequel(AccessSequelBase):
 
     def _get(self, table: str, schema: str, columns: list = None,
-             where_key: str = None,
-             where_value: Union[str, int, float] = None)\
+             filter_key: str = None,
+             filter_value: Union[str, int, float] = None)\
             -> Sequel:
 
         sequel = Sequel(
             name="select",
             description="Selected {} from {}.{} where {} = {}".format(
-                columns, schema, table, where_key, where_value
+                columns, schema, table, filter_key, filter_value
             ),
             cmd=sql.SQL("SELECT {} FROM {}.{} WHERE {} = {};").format(
                 sql.SQL(", ").join(map(sql.Identifier, columns)),
                 sql.Identifier(schema),
                 sql.Identifier(table),
-                sql.Identifier(where_key),
+                sql.Identifier(filter_key),
                 sql.Placeholder()),
-            params=(where_value,)
+            params=(filter_value,)
         )
         return sequel
 
     def _get_all_columns_all_rows(self, table: str, schema: str,
                                   columns: list = None,
-                                  where_key: str = None,
-                                  where_value: Union[str, int, float] = None)\
+                                  filter_key: str = None,
+                                  filter_value: Union[str, int, float] = None)\
             -> Sequel:
 
         sequel = Sequel(
@@ -373,8 +373,8 @@ class AccessSequel(AccessSequelBase):
         return sequel
 
     def _get_all_rows(self, table: str, schema: str, columns: list = None,
-                      where_key: str = None,
-                      where_value: Union[str, int, float] = None) -> Sequel:
+                      filter_key: str = None,
+                      filter_value: Union[str, int, float] = None) -> Sequel:
 
         sequel = Sequel(
             name="select",
@@ -391,56 +391,56 @@ class AccessSequel(AccessSequelBase):
 
     def _get_all_columns(self, table: str, schema: str,
                          columns: list = None,
-                         where_key: str = None,
-                         where_value: Union[str, int, float] = None)\
+                         filter_key: str = None,
+                         filter_value: Union[str, int, float] = None)\
             -> Sequel:
 
         sequel = Sequel(
             name="select",
             description="Selected * from {}.{} where {} = {}".format(
-                schema, table, where_key, where_value
+                schema, table, filter_key, filter_value
             ),
             cmd=sql.SQL("SELECT * FROM {}.{} WHERE {} = {};").format(
                 sql.Identifier(schema),
                 sql.Identifier(table),
-                sql.Identifier(where_key),
+                sql.Identifier(filter_key),
                 sql.Placeholder()
             ),
-            params=(where_value,)
+            params=(filter_value,)
         )
         return sequel
 
     def read(self, table: str, schema: str, columns: list = None,
-             where_key: str = None,
-             where_value: Union[str, int, float] = None) -> Sequel:
+             filter_key: str = None,
+             filter_value: Union[str, int, float] = None) -> Sequel:
 
-        if (where_key is None and where_value is None) != \
-                (where_key is None or where_value is None):
+        if (filter_key is None and filter_value is None) != \
+                (filter_key is None or filter_value is None):
             raise ValueError("where values not completely specified.")
 
-        if (columns is not None and where_key is not None):
+        if (columns is not None and filter_key is not None):
             # Returns selected columns from selected rows
             return self._get(table=table, schema=schema, columns=columns,
-                             where_key=where_key, where_value=where_value)
+                             filter_key=filter_key, filter_value=filter_value)
         elif (columns is not None):
             # Returns all rows, selected columns
             return self._get_all_rows(table=table, schema=schema,
                                       columns=columns,
-                                      where_key=where_key,
-                                      where_value=where_value)
+                                      filter_key=filter_key,
+                                      filter_value=filter_value)
 
-        elif (where_key is not None):
+        elif (filter_key is not None):
             # Returns all columns, selected rows
             return self._get_all_columns(table=table, schema=schema,
                                          columns=columns,
-                                         where_key=where_key,
-                                         where_value=where_value)
+                                         filter_key=filter_key,
+                                         filter_value=filter_value)
 
         else:
             return self._get_all_columns_all_rows(table=table, schema=schema,
                                                   columns=columns,
-                                                  where_key=where_key,
-                                                  where_value=where_value)
+                                                  filter_key=filter_key,
+                                                  filter_value=filter_value)
 
     def create(self, table: str, schema: str, columns: list,
                values: list) -> Sequel:
@@ -467,41 +467,41 @@ class AccessSequel(AccessSequelBase):
         return sequel
 
     def update(self, table: str, schema: str, column: str,
-               value: Union[str, float, int], where_key: str,
-               where_value: Union[str, float, int]) -> Sequel:
+               value: Union[str, float, int], filter_key: str,
+               filter_value: Union[str, float, int]) -> Sequel:
 
         sequel = Sequel(
             name="update",
             description="Updated {}.{} setting {} = {} where {} = {}".format(
-                schema, table, column, value, where_key, where_value
+                schema, table, column, value, filter_key, filter_value
             ),
             cmd=sql.SQL("UPDATE {}.{} SET {} = {} WHERE {} = {}").format(
                 sql.Identifier(schema),
                 sql.Identifier(table),
                 sql.Identifier(column),
                 sql.Placeholder(),
-                sql.Identifier(where_key),
+                sql.Identifier(filter_key),
                 sql.Placeholder()
             ),
-            params=(value, where_value,)
+            params=(value, filter_value,)
         )
 
         return sequel
 
-    def delete(self, table: str, schema: str, where_key: str,
-               where_value: Union[str, float, int]) -> Sequel:
+    def delete(self, table: str, schema: str, filter_key: str,
+               filter_value: Union[str, float, int]) -> Sequel:
 
         sequel = Sequel(
             name="delete",
             description="Deleted from {}.{} where {} = {}".format(
-                schema, table, where_key, where_value
+                schema, table, filter_key, filter_value
             ),
             cmd=sql.SQL("DELETE FROM {} WHERE {} = {}").format(
                 sql.Identifier(table),
-                sql.Identifier(where_key),
+                sql.Identifier(filter_key),
                 sql.Placeholder()
             ),
-            params=(where_value,)
+            params=(filter_value,)
         )
 
         return sequel

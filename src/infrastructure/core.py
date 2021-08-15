@@ -3,7 +3,7 @@
 # =========================================================================== #
 # Project  : Drug Approval Analytics                                          #
 # Version  : 0.1.0                                                            #
-# File     : \src\platform\database\base.py                                   #
+# File     : \src\platform\database\core.py                                   #
 # Language : Python 3.9.5                                                     #
 # --------------------------------------------------------------------------  #
 # Author   : John James                                                       #
@@ -11,22 +11,25 @@
 # Email    : john.james@nov8.ai                                               #
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
-# Created  : Monday, August 9th 2021, 11:44:10 pm                             #
-# Modified : Friday, August 13th 2021, 8:59:02 am                             #
+# Created  : Sunday, August 15th 2021, 2:30:11 am                             #
+# Modified : Sunday, August 15th 2021, 2:31:03 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
-"""Database abstract base class for administration and access modules."""
+"""Core modules used internally."""
 from abc import ABC, abstractmethod
+from datetime import datetime, timedelta
 import logging
 from typing import Union
 
 import psycopg2
 
 from .sequel import Sequel
+
 from .connect import PGConnectionFactory
+from .config import DBCredentials
 from ...utils.logger import exception_handler
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
@@ -34,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 # --------------------------------------------------------------------------- #
 class Response:
-    """Contains response data from database commands."""
+    """Class representing responses from database commands."""
 
     def __init__(self, cursor=None, fetchone=None, fetchall=None,
                  description=None, rowcount: int = 0):
@@ -76,48 +79,3 @@ class Command:
             cursor.execute(open(sequel.params, "r").read())
         cursor.close()
         logger.info(sequel.description)
-
-# --------------------------------------------------------------------------- #
-
-
-class Admin(ABC):
-    """Abstract base class for database administration classes."""
-
-    def __init__(self):
-        self._command = Command()
-
-    @abstractmethod
-    def create(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    def exists(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    def delete(self, name: str, connection: PGConnectionFactory):
-        pass
-
-
-# --------------------------------------------------------------------------- #
-class Access(ABC):
-    """Abstract base class for database access classes."""
-
-    def __init__(self):
-        self._command = Command()
-
-    @abstractmethod
-    def create(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    def read(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    def update(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
-        pass
-
-    @abstractmethod
-    def delete(self, name: str, connection: PGConnectionFactory):
-        pass

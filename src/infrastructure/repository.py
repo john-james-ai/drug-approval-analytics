@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Saturday, July 31st 2021, 3:44:38 am                             #
-# Modified : Thursday, August 12th 2021, 8:59:10 pm                           #
+# Modified : Sunday, August 15th 2021, 12:13:34 pm                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -23,42 +23,44 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 import logging
-
+from types import Union
 import pandas as pd
 
-from ..database.connect import PGConnectionFactory
-from ..database.access import PGDao
-from ..config import DBCredentials
+from ..platform.database.connect import PGConnectionFactory
+from ..platform.database.context import PGDao
+from ..platform.database.connect import ConnectionFactory
+from ..platform.config import rx2m_login, DBCredentials
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 
+
 # --------------------------------------------------------------------------- #
-#                              ARTIFACTS                                      #
+#                              REPOSITORY                                     #
 # --------------------------------------------------------------------------- #
+class Repository(ABC):
 
-
-class Artifact(ABC):
-
-    def __init__(self, *args, **kwargs) -> None:
-        self._connection_factory = PGConnectionFactory()
-        self._dao = PGDao()
-        self._schema = 'public'
+    def __init__(self, context; Context) -> None:
+        self._context = context
+        self._data = None
+        self._index = 0
 
     @abstractmethod
-    def create(self, name: str, *args, **kwargs) -> None:
+    def __next__(self):
+
+    @abstractmethod
+    def get(self, name: str, *args, **kwargs) -> pd.DataFrame:
         pass
 
     @abstractmethod
-    def read(self, name: str = None, *args, **kwargs) -> \
-            pd.DataFrame:
+    def add(self, entity: Entity) -> None:
         pass
 
     @abstractmethod
-    def update(self, name: str, *args, **kwargs) -> None:
+    def update(self, entity: Entity) -> None:
         pass
 
     @abstractmethod
-    def delete(self, name: str, *args, **kwargs) -> None:
+    def remove(self, name: str, *args, **kwargs) -> None:
         pass
 
 
@@ -112,8 +114,8 @@ class DataSource(Artifact):
     def read(self, name: str = None) -> pd.DataFrame:
         if name is not None:
             result = self._dao.read(table=self._table,
-                                    where_key='name',
-                                    where_value=name,
+                                    filter_key='name',
+                                    filter_value=name,
                                     schema=self._schema)
         else:
             result = self._dao.read(table=self._table,
@@ -127,29 +129,29 @@ class DataSource(Artifact):
         self._dao.connect()
         self._dao.begin()
         self._dao.update(table=self._table, column='uris', value=uris,
-                         where_key='name', where_value=name,
+                         filter_key='name', filter_value=name,
                          schema=self._schema)
         self._dao.update(table=self._table, column='has_changed',
                          value=has_changed,
-                         where_key='name', where_value=name,
+                         filter_key='name', filter_value=name,
                          schema=self._schema)
         self._dao.update(table=self._table, column='source_updated',
                          value=source_updated,
-                         where_key='name', where_value=name,
+                         filter_key='name', filter_value=name,
                          schema=self._schema)
         self._dao.update(table=self._table, column='updated',
                          value=updated,
-                         where_key='name', where_value=name,
+                         filter_key='name', filter_value=name,
                          schema=self._schema)
         self._dao.update(table=self._table, column='updated_by',
                          value=updated_by,
-                         where_key='name', where_value=name,
+                         filter_key='name', filter_value=name,
                          schema=self._schema)
         self._dao.commit()
         self._dao.close()
 
     def delete(self, name) -> None:
-        self._dao.delete(table=self._table, where_key='name', where_value=name,
+        self._dao.delete(table=self._table, filter_key='name', filter_value=name,
                          schema=self._schema)
 
 
@@ -165,7 +167,7 @@ class Event(ABC):
         self._schema = 'public'
 
     @abstractmethod
-    def create(self, name: str, *args, **kwargs) -> None:
+    def add(self, name: str, *args, **kwargs) -> None:
         pass
 
     @abstractmethod
@@ -197,8 +199,8 @@ class DataSourceEvent(Event):
             df = self._dao.read(table=self._table)
         else:
             df = self._dao.read(table=self._table,
-                                where_key="name", where_value=name)
+                                filter_key="name", filter_value=name)
         return df
 
     def delete(self, id: int = None) -> pd.DataFrame:
-        self._dao.delete(table=self._table, where_key="id", where_value=id)
+        self._dao.delete(table=self._table, filter_key="id", filter_value=id)

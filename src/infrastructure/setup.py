@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Friday, August 13th 2021, 2:03:17 am                             #
+# Modified : Friday, August 13th 2021, 7:25:00 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -25,7 +25,7 @@ import logging
 import pandas as pd
 from psycopg2 import sql
 
-from .base import PGConnectionFactory, SAConnectionFactory
+from .connect import PGConnectionFactory, SAConnectionFactory
 from ..utils.logger import exception_handler
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)

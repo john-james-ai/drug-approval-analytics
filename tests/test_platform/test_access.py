@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, August 8th 2021, 8:31:22 am                              #
-# Modified : Friday, August 13th 2021, 9:56:25 am                             #
+# Modified : Sunday, August 15th 2021, 1:46:44 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -23,7 +23,7 @@ from datetime import datetime
 import pandas as pd
 import logging
 
-from src.platform.database.access import PGDao
+from src.platform.database.context import PGDao
 from src.platform.database.admin import DBAdmin, TableAdmin
 from tests.test_utils.debugging import announce
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ tables = ["datasourceevent", "featuretransform",
 dbname = "rx2m_test"
 
 
-@pytest.mark.access
+@pytest.mark.context
 class AccessTests:
 
     @announce
@@ -91,7 +91,7 @@ class AccessTests:
         connection = rx2m_test_connection
         access = PGDao()
         df = access.read(table="datasource", columns=["version", "name", "uris"],
-                         where_key="type", where_value='metadata',
+                         filter_key="type", filter_value='metadata',
                          connection=connection)
         assert isinstance(
             df, pd.DataFrame), "DAOError: Get didn't return a dataframe"
@@ -102,8 +102,8 @@ class AccessTests:
     def test_get_all_columns(self, rx2m_test_connection):
         connection = rx2m_test_connection
         access = PGDao()
-        df = access.read(table="datasource",  where_key="type",
-                         where_value="metadata", connection=connection)
+        df = access.read(table="datasource",  filter_key="type",
+                         filter_value="metadata", connection=connection)
         assert isinstance(
             df, pd.DataFrame), "DAOError: Get didn't return a dataframe"
         assert df.shape[0] == 2, "DAOError: Dataframe has no rows"
@@ -151,9 +151,9 @@ class AccessTests:
         connection = rx2m_test_connection
         access = PGDao()
         response = access.update(table="datasource", column='version', value=99,
-                                 where_key='name', where_value='studies', connection=connection)
+                                 filter_key='name', filter_value='studies', connection=connection)
         df = access.read(table="datasource", columns=["version", "name", "uris"],
-                         where_key="name", where_value='studies', connection=connection)
+                         filter_key="name", filter_value='studies', connection=connection)
         assert isinstance(
             df, pd.DataFrame), "DAOError: Get didn't return a dataframe"
         assert df.shape[0] == 1, "DAOError: Dataframe has no rows"
@@ -167,7 +167,7 @@ class AccessTests:
         connection = rx2m_test_connection
         access = PGDao()
         response = access.delete(table="datasource",
-                                 where_key="name", where_value='rhythm',
+                                 filter_key="name", filter_value='rhythm',
                                  connection=connection)
         df = access.read(table="datasource", connection=connection)
         assert isinstance(

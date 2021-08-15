@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Friday, August 13th 2021, 9:07:01 am                             #
+# Modified : Sunday, August 15th 2021, 2:28:16 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -28,7 +28,6 @@ import pandas as pd
 from ...utils.logger import exception_handler
 from .sequel import DatabaseSequel, UserSequel, TableSequel
 from .connect import SAConnectionFactory, PGConnectionFactory
-from .base import Admin
 
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
@@ -37,8 +36,26 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
 #                      DATABASE ADMINISTRATION                                #
 # --------------------------------------------------------------------------- #
+class Admin(ABC):
+    """Abstract base class for database administration classes."""
+
+    def __init__(self):
+        self._command = Command()
+
+    @abstractmethod
+    def create(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def exists(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def delete(self, name: str, connection: PGConnectionFactory):
+        pass
 
 
+# --------------------------------------------------------------------------- #
 class DBAdmin(Admin):
     """Database administration class."""
 
