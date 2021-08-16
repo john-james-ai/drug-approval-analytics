@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Friday, August 13th 2021, 7:25:00 pm                             #
+# Modified : Monday, August 16th 2021, 12:50:46 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -25,7 +25,7 @@ import logging
 import pandas as pd
 from psycopg2 import sql
 
-from .connect import PGConnectionFactory, SAConnectionFactory
+from .connect import PGConnectionPool, SAConnectionPool
 from ..utils.logger import exception_handler
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
@@ -97,11 +97,11 @@ def get_connections(credentials: DBCredentials) -> tuple:
     Argument
         credentials dict: Dictionary containing database credentials.
     """
-    connector = PGConnectionFactory()
+    connector = PGConnectionPool()
     connector.initialize(credentials)
     pg_connection = connector.get_connection()
 
-    connector = SAConnectionFactory()
+    connector = SAConnectionPool()
     connector.initialize(credentials)
     sa_connection = connector.get_connection()
 

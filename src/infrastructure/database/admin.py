@@ -12,13 +12,14 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Sunday, August 15th 2021, 2:28:16 am                             #
+# Modified : Monday, August 16th 2021, 4:00:04 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
 """Database setup module."""
+from abc import ABC, abstractmethod
 import logging
 from subprocess import Popen, PIPE
 import shlex
@@ -27,7 +28,7 @@ import pandas as pd
 
 from ...utils.logger import exception_handler
 from .sequel import DatabaseSequel, UserSequel, TableSequel
-from .connect import SAConnectionFactory, PGConnectionFactory
+from .connect import SAConnectionPool, PGConnectionPool, Command
 
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
@@ -43,15 +44,15 @@ class Admin(ABC):
         self._command = Command()
 
     @abstractmethod
-    def create(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
+    def create(self, name: str, connection: PGConnectionPool, *args, **kwargs):
         pass
 
     @abstractmethod
-    def exists(self, name: str, connection: PGConnectionFactory, *args, **kwargs):
+    def exists(self, name: str, connection: PGConnectionPool, *args, **kwargs):
         pass
 
     @abstractmethod
-    def delete(self, name: str, connection: PGConnectionFactory):
+    def delete(self, name: str, connection: PGConnectionPool):
         pass
 
 
@@ -74,7 +75,7 @@ class DBAdmin(Admin):
 
     @exception_handler()
     def create(self, name: str,
-               connection: PGConnectionFactory) -> None:
+               connection: PGConnectionPool) -> None:
         """Creates a database
 
         Arguments
@@ -96,7 +97,7 @@ class DBAdmin(Admin):
 
     @exception_handler()
     def exists(self, name: str,
-               connection: PGConnectionFactory) -> None:
+               connection: PGConnectionPool) -> None:
         """Checks existance of a named database.
 
         Arguments
@@ -113,7 +114,7 @@ class DBAdmin(Admin):
 
     @exception_handler()
     def terminate_database_processes(self, name: str,
-                                     connection: PGConnectionFactory) -> None:
+                                     connection: PGConnectionPool) -> None:
         """Terminates activity on a database.
 
         Arguments
@@ -127,8 +128,21 @@ class DBAdmin(Admin):
         return response
 
     @exception_handler()
+    def activity(self, connection: PGConnectionPool) -> None:
+        """Get activity on a database.
+
+        Arguments
+            connection (Psycopg2 Database Connection)
+
+        """
+
+        sequel = self._sequel.activity()
+        response = self._command.execute(sequel, connection)
+        return response.fetchall
+
+    @exception_handler()
     def delete(self, name: str,
-               connection: PGConnectionFactory) -> None:
+               connection: PGConnectionPool) -> None:
         """Drops a database if it exists.
 
         Arguments
@@ -236,21 +250,35 @@ class TableAdmin(Admin):
         self._sequel = TableSequel()
 
     @exception_handler()
-    def create(self, filepath: str,
-               connection: PGConnectionFactory) -> None:
-        """Creates one or more tables defined in the designated filepath.
+    def create(self, name: str, filepath: str,
+               connection: PGConnectionPool) -> None:
+        """Creates a table from ddl defined in the designated filepath.
+
+        Arguments:
+            name (str): The name of the table to create.
+            filepath (str): The location of the file containing the DDL.
+            connection (Psycopg2 Database Connection)
+
+        """
+        sequel = self._sequel.create(name, filepath)
+        self._command.execute_ddl(sequel, connection)
+
+    @exception_handler()
+    def batch_create(self, filepath: str,
+                     connection: PGConnectionPool) -> None:
+        """Creates multiple tables from ddl defined in the designated filepath.
 
         Arguments:
             filepath (str): The location of the file containing the DDL.
             connection (Psycopg2 Database Connection)
 
         """
-        sequel = self._sequel.create(filepath)
+        sequel = self._sequel.batch_create(filepath)
         self._command.execute_ddl(sequel, connection)
 
     @exception_handler()
     def load(self, name: str, data: pd.DataFrame,
-             connection: SAConnectionFactory,
+             connection: SAConnectionPool,
              schema: str = 'public', **kwargs) \
             -> None:
         """Loads a table from a pandas DataFrame object.
@@ -272,12 +300,12 @@ class TableAdmin(Admin):
 
     @exception_handler()
     def exists(self, name: str,
-               connection: PGConnectionFactory,
+               connection: PGConnectionPool,
                schema: str = 'public') -> None:
-        """Checks existance of a named database.
+        """Checks existance of a named table.
 
         Arguments
-            name(str): Name of database to check.
+            name(str): Name of table to check.
             connection (Psycopg2 Database Connection)
             schema (str): The namespace for the table.
 
@@ -293,7 +321,7 @@ class TableAdmin(Admin):
 
     @exception_handler()
     def delete(self, name: str,
-               connection: PGConnectionFactory,
+               connection: PGConnectionPool,
                schema: str = 'public') -> None:
         """Deletes one or more tables by ddl defined in the designated filepath.
 
@@ -307,7 +335,7 @@ class TableAdmin(Admin):
 
     @exception_handler()
     def batch_delete(self, filepath: str,
-                     connection: PGConnectionFactory) -> None:
+                     connection: PGConnectionPool) -> None:
         """Deletes one or more tables by ddl defined in the designated filepath.
 
         Arguments:
@@ -320,7 +348,7 @@ class TableAdmin(Admin):
 
     @exception_handler()
     def column_exists(self, name: str, column: str,
-                      connection: PGConnectionFactory,
+                      connection: PGConnectionPool,
                       schema: str = 'public') -> None:
         """Checks existance of a named database.
 
@@ -341,7 +369,7 @@ class TableAdmin(Admin):
 
     @exception_handler()
     def tables(self, name: str,
-               connection: PGConnectionFactory,
+               connection: PGConnectionPool,
                schema: str = 'public') -> None:
         """Checks existance of a named database.
 
@@ -360,7 +388,7 @@ class TableAdmin(Admin):
 
     @exception_handler()
     def get_columns(self, name: str,
-                    connection: PGConnectionFactory,
+                    connection: PGConnectionPool,
                     schema: str = 'public') -> None:
         """Return the column names for table.
 
@@ -389,7 +417,7 @@ class UserAdmin(Admin):
 
     @exception_handler()
     def create(self, name: str, password: str,
-               connection: PGConnectionFactory) -> None:
+               connection: PGConnectionPool) -> None:
         """Creates a user for the connected database.
 
         Arguments:
@@ -402,7 +430,7 @@ class UserAdmin(Admin):
 
     @exception_handler()
     def exists(self, name: str,
-               connection: PGConnectionFactory) -> None:
+               connection: PGConnectionPool) -> None:
         """Creates a user for the connected database.
 
         Arguments:
@@ -419,7 +447,7 @@ class UserAdmin(Admin):
 
     @exception_handler()
     def delete(self, name: str,
-               connection: PGConnectionFactory) -> None:
+               connection: PGConnectionPool) -> None:
         """Creates a user for the connected database.
 
         Arguments:
@@ -432,7 +460,7 @@ class UserAdmin(Admin):
 
     @exception_handler()
     def grant(self, name: str, dbname: str,
-              connection: PGConnectionFactory) -> None:
+              connection: PGConnectionPool) -> None:
         """Grants user privileges to database.
 
         Arguments:
@@ -446,7 +474,7 @@ class UserAdmin(Admin):
 
     @exception_handler()
     def revoke(self, name: str, dbname: str,
-               connection: PGConnectionFactory) -> None:
+               connection: PGConnectionPool) -> None:
         """Revokes user privileges to database.
 
         Arguments:

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 4:47:23 am                             #
-# Modified : Sunday, August 15th 2021, 7:52:44 am                             #
+# Modified : Monday, August 16th 2021, 3:17:10 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -22,80 +22,97 @@
 from abc import ABC, abstractmethod
 import logging
 
+import psycopg2
 from psycopg2 import pool
 from sqlalchemy import create_engine
 
 from ...utils.logger import exception_handler
-from ..config import DBCredentials
+from .sequel import Sequel
+from src.application.config import DBCredentials
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
-#                          CONNECTION BASE CLASS                              #
-# --------------------------------------------------------------------------- #
 
 
-class Connection:
-    """Database Connection Class."""
+class Response:
+    """Class representing responses from database commands."""
 
-    def __init__(connection_pool: ConnectionPool,
-                 sequel: Sequel,
-                 command: Command) -> None:
-        self._connection_pool = connection_pool
-        self._sequel = sequel
-        self._command = command
-        self._connection = None
-
-    def __del__(self):
-        self._connection.close()
-        self._connection_pool.return_connection(self._connection)
-        self._connection_pool.close_all_connections()
-
-    def begin_transaction(self, isolation_level: str = None):
-        self._connection = self._connection_pool.get_connection()
-        self._connection.set_session(isolation_level)
-        sequel = self._sequel.begin()
-        self._command.execute(sequel, self._connection)
-
-    def end_transaction(self):
-        self._connection.commit()
-
-    def open(self):
-        if not self._connection:
-            self._connection = self._connection_pool.get_connection()
-
-    def close(self):
-        self._connection.close()
-
-    def commit(self):
-        self._connection.commit()
-
-    def rollback(self):
-        self._connection.rollback()
-
-    def change_database(self, credentials: DBCredentials) -> None:
-        self._connection_pool.return_connection(self._connection)
-        self._connection_pool.initialize(credentials)
-        self._connection = self._connection_pool.get_connection()
+    def __init__(self, cursor=None, execute=None, fetchone=None,
+                 fetchall=None, description=None, rowcount: int = 0):
+        self.cursor = cursor
+        self.execute = execute
+        self.fetchall = fetchall
+        self.fetchone = fetchone
+        self.rowcount = rowcount
+        self.description = description
 
 
 # --------------------------------------------------------------------------- #
-#                           CONNECTION FACTORY                                #
-# --------------------------------------------------------------------------- #
-class ConnectionFactory:
-    """Creates connection objects. """
+class Command:
+    """This class is used to execute commands against the database."""
 
-    def __init__(self, credentials: DBCredentials,
-                 connection_pool: ConnectionPool,
-                 sequel: Sequel
-                 command: Command):
-        self._connection_pool = connection_pool.intialize(credentials)
-        self._sequel = sequel
-        self._command = command
+    def __init__(self):
+        self._cursor = None
+        self._prior_command = None
 
-    def build_connection(self):
-        connection = Connection(self._connection_pool,
-                                self._sequel, self._command)
-        return connection
+    @exception_handler()
+    def execute_next(self, cursor) -> Response:
+        response_fetchone = cursor.fetchone()
+        response_description = cursor.description
+        response = Response(cursor=cursor,
+                            fetchone=response_fetchone,
+                            description=response_description)
+
+        return response
+
+    @exception_handler()
+    def execute_one(self, sequel: Sequel, connection) -> Response:
+        cursor = connection.cursor()
+        response_execute = cursor.execute(sequel.cmd, sequel.params)
+        response_description = cursor.description
+        response_rowcount = cursor.rowcount
+        response_fetchone = cursor.fetchone()
+
+        response = Response(cursor=cursor,
+                            execute=response_execute,
+                            fetchone=response_fetchone,
+                            description=response_description,
+                            rowcount=response_rowcount)
+
+        logger.info(sequel.description)
+        return response
+
+    @exception_handler()
+    def execute(self, sequel: Sequel, connection) -> Response:
+        cursor = connection.cursor()
+        response_execute = cursor.execute(sequel.cmd, sequel.params)
+        response_description = cursor.description
+        response_rowcount = cursor.rowcount
+
+        try:
+            response_fetchall = cursor.fetchall()
+        except psycopg2.ProgrammingError:
+            response_fetchall = None
+
+        response = Response(cursor=cursor,
+                            execute=response_execute,
+                            fetchall=response_fetchall,
+                            description=response_description,
+                            rowcount=response_rowcount)
+        cursor.close()
+        logger.info(sequel.description)
+        return response
+
+    @exception_handler()
+    def execute_ddl(self, sequel: Sequel, connection) -> None:
+        """Processes SQL DDL commands from file."""
+
+        with connection.cursor() as cursor:
+            cursor.execute(open(sequel.params, "r").read())
+        cursor.close()
+        logger.info(sequel.description)
+
+
 # --------------------------------------------------------------------------- #
 #                       CONNECTION POOL BASE CLASS                            #
 # --------------------------------------------------------------------------- #
@@ -132,7 +149,7 @@ class ConnectionPool(ABC):
 
 
 # --------------------------------------------------------------------------- #
-#                      POSTGRES CONNECTOR CLASS                               #
+#                    POSTGRES CONNECTION POOL CLASS                           #
 # --------------------------------------------------------------------------- #
 class PGConnectionPool(ConnectionPool):
     """Postgres database connection pool."""
@@ -184,7 +201,7 @@ class PGConnectionPool(ConnectionPool):
 
 
 # --------------------------------------------------------------------------- #
-#                      SQLALCHEMY CONNECTOR CLASS                             #
+#                     SQLALCHEMY CONNECTOR POOL CLASS                         #
 # --------------------------------------------------------------------------- #
 class SAConnectionPool(ConnectionPool):
     """SQLAlchemy database connection pool."""
@@ -246,3 +263,75 @@ class SAConnectionPool(ConnectionPool):
         logger.info(
             "Closed all {} connections.".format(
                 SAConnectionPool.__class__.__name__,))
+
+# --------------------------------------------------------------------------- #
+#                           CONNECTION FACTORY                                #
+# --------------------------------------------------------------------------- #
+
+
+class ConnectionFactory:
+    """Creates connection objects. """
+
+    def __init__(self, credentials: DBCredentials,
+                 connection_pool: ConnectionPool,
+                 sequel: Sequel,
+                 command: Command):
+        self._connection_pool = connection_pool.intialize(credentials)
+        self._sequel = sequel
+        self._command = command
+
+    def build_connection(self):
+        connection = Connection(self._connection_pool,
+                                self._sequel, self._command)
+        return connection
+# --------------------------------------------------------------------------- #
+#                          CONNECTION BASE CLASS                              #
+# --------------------------------------------------------------------------- #
+
+
+class Connection:
+    """Database Connection Class."""
+
+    def __init__(connection_pool: ConnectionPool,
+                 sequel: Sequel,
+                 command: Command) -> None:
+        self._connection_pool = connection_pool
+        self._sequel = sequel
+        self._command = command
+        self._connection = None
+
+    def __del__(self):
+        self._connection.close()
+        self._connection_pool.return_connection(self._connection)
+        self._connection_pool.close_all_connections()
+
+    def begin_transaction(self, isolation_level: str = None):
+        self._connection = self._connection_pool.get_connection()
+        self._connection.set_session(isolation_level)
+        sequel = self._sequel.begin()
+        self._command.execute(sequel, self._connection)
+
+    def end_transaction(self):
+        self._connection.commit()
+
+    def open(self):
+        if not self._connection:
+            self._connection = self._connection_pool.get_connection()
+
+    def close(self):
+        self._connection.close()
+
+    def commit(self):
+        self._connection.commit()
+
+    def rollback(self):
+        self._connection.rollback()
+
+    def change_database(self, credentials: DBCredentials) -> None:
+        self._connection_pool.return_connection(self._connection)
+        self._connection_pool.initialize(credentials)
+        self._connection = self._connection_pool.get_connection()
+
+    @property
+    def cursor(self):
+        return self._connection.cursor

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 10th 2021, 1:35:36 am                            #
-# Modified : Sunday, August 15th 2021, 1:46:44 am                             #
+# Modified : Monday, August 16th 2021, 12:50:46 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -22,10 +22,10 @@ import pytest
 import logging
 import pandas as pd
 
-from src.platform.database.admin import DBAdmin, TableAdmin
-from src.platform.database.context import PGDao
-from src.platform.database.connect import PGConnectionFactory
-from src.platform.config import pg_login, rx2m_test_login
+from src.infrastructure.database.admin import DBAdmin, TableAdmin
+from src.infrastructure.database.context import PGDao
+from src.infrastructure.database.connect import PGConnectionPool
+from src.application.config import pg_login, rx2m_test_login
 from tests.test_utils.print import start, end
 from tests.test_utils.debugging import announce
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ class DBAdminTests:
         admin = DBAdmin()
         admin.create(name=dbname, connection=connection)
         if connection is not None:
-            PGConnectionFactory.return_connection(connection)
+            PGConnectionPool.return_connection(connection)
 
     @announce
     def test_exists(self, rx2m_test_connection):
@@ -72,7 +72,7 @@ class DBAdminTests:
         admin = DBAdmin()
         response = admin.exists(name=dbname, connection=connection)
         if connection is not None:
-            PGConnectionFactory.return_connection(connection)
+            PGConnectionPool.return_connection(connection)
         assert response, "Database Exists Error: Expected True"
 
     @announce
@@ -115,7 +115,7 @@ class TableAdminTests:
         tablelist = tadmin.tables(
             rx2m_test_login.dbname, connection=connection)
         if connection is not None:
-            PGConnectionFactory.return_connection(connection)
+            PGConnectionPool.return_connection(connection)
         assert len(tablelist) == 11, print(tablelist)
 
     @announce

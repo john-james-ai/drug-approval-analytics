@@ -3,7 +3,7 @@
 # =========================================================================== #
 # Project  : Drug Approval Analytics                                          #
 # Version  : 0.1.0                                                            #
-# File     : \tests\test_data\test_datasource.py                              #
+# File     : \src\platform\database\context.py                                #
 # Language : Python 3.9.5                                                     #
 # --------------------------------------------------------------------------  #
 # Author   : John James                                                       #
@@ -11,46 +11,51 @@
 # Email    : john.james@nov8.ai                                               #
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
-# Created  : Tuesday, August 10th 2021, 11:38:31 pm                           #
-# Modified : Friday, August 13th 2021, 7:22:12 am                             #
+# Created  : Sunday, August 15th 2021, 2:20:27 am                             #
+# Modified : Monday, August 16th 2021, 12:57:50 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
-import pytest
-import logging
 
-from src.data.extract import Studies
-from src.platform.metadata.repository import DataSource
-from src.platform.config import rx2m_login
-
-from tests.test_utils.debugging import announce
+from .connect import PGConnectionPool
+from src.application.config import DBCredentials
+from src.infrastructure.database.connect import Connection
+from .access import PGDao
 # --------------------------------------------------------------------------- #
-logger = logging.getLogger(__name__)
+
+# --------------------------------------------------------------------------- #
+#                             CONTEXT                                         #
+# --------------------------------------------------------------------------- #
 
 
-@pytest.mark.habitue
-class HabitueTests:
+class Context:
+    """Database context class encapsulating database connection, and access."""
 
-    @announce
-    @pytest.mark.habitue
-    def test_studies(self, build_test_metadata_database):
-        build_test_metadata_database
-        # Confirm database is setup
-        sources = DataSource(rx2m_login)
-        df = sources.read()
-        assert df.shape[0] == 10, print(df)
-        assert df.shape[1] == 25, print(df)
+    def __init__(self, connection: Connection,
+                 dao: PGDao) -> None:
 
-        habitue = Studies(rx2m_login)
-        habitue.execute()
-        logger.debug("\n\n\tTest Studies: Executed Habitue")
+        self._connection = connection
+        self._dao = dao
 
-        # Confirm database is setup
-        # df2 = sources.read("studies")
-        # logger.debug("\n\n\tTest Studies: Read Studies")
-        # assert df2.iloc[0]['has_changed'], print(df2.iloc[0]['has_changed'])
+    def begin_transaction(self):
+        self._connection.begin_transaction()
 
-    def test_tear_down(self, tear_down_test_metadata_database):
-        tear_down_test_metadata_database
+    def open(self):
+        self._connection.open()
+
+    def close(self):
+        self._connection.close()
+
+    def rollback(self):
+        self._connection.rollback()
+
+    @property
+    def dao(self):
+        self._dao(connection=self._connection)
+        return self_dao
+
+    @property
+    def dbname(self):
+        return self._credentials.dbname

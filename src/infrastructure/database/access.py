@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Saturday, August 14th 2021, 10:11:57 pm                          #
-# Modified : Sunday, August 15th 2021, 8:06:13 am                             #
+# Modified : Monday, August 16th 2021, 3:37:25 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -26,9 +26,9 @@ import uuid
 
 import pandas as pd
 
-from .core import Command
-from .sequel import AccessSequel
-from ..config import DBCredentials
+from .connect import Command
+from .sequel import Sequel, AccessSequel
+from src.application.config import DBCredentials
 from ...utils.logger import exception_handler
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
@@ -41,8 +41,19 @@ logger = logging.getLogger(__name__)
 class Access(ABC):
     """Abstract base class for database context classes."""
 
-    def __init__(self, connection) -> None:
+    def __init__(self, connection, end=0) -> None:
         self._connection = connection
+        self._command = Command()
+
+        self._end = end
+
+    def __iter__(self):
+        self._index - 0
+        return self
+
+    @abstractmethod
+    def __next__(self):
+        pass
 
     @abstractmethod
     def create(self, name: str, columns: list,
@@ -76,17 +87,43 @@ class Access(ABC):
 class PGDao(Access):
     """Postgres data access object."""
 
-    def __init__(self, connection) -> None:
+    def __init__(self, connection, name=None) -> None:
         """Postgres Database Context Object (PGDao)
 
         Arguments:
             connection (psycopg2.connection): The Postgres database connection.
+            name (str): A name of a table to which access is required.
 
         Dependencies:
             AccessSequel (Sequel): Serves parameterized SQL statements
 
         """
         super(PGDao, self).__init__(connection)
+        self._name = name
+        self._sequel = AccessSequel()
+        self._response = None
+        self._response_description = None
+
+    @exception_handler()
+    def __iter__(self):
+        sequel = self._sequel.read(name=self._name, schema='public')
+        self._response = self._command.execute_one(sequel, self._connection)
+        try:
+            self._columns = [element[0]
+                             for element in self._response.description]
+        except Exception as e:
+            logger.error(e)
+        return self
+
+    @exception_handler()
+    def __next__(self):
+        if self._response.fetchone is not None:
+            result = pd.DataFrame(
+                data=list(self._response.fetchone), index=list(self._columns))
+            self._response = self._command.execute_next(self._response.cursor)
+            return result.T
+        else:
+            raise StopIteration
 
     @exception_handler()
     def create(self, name: str, columns: list,

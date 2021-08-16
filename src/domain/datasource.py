@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, August 15th 2021, 9:31:23 am                             #
-# Modified : Sunday, August 15th 2021, 11:52:54 am                            #
+# Modified : Sunday, August 15th 2021, 9:13:40 pm                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -109,7 +109,7 @@ class Visitor(ABC):
     """Base class for data source visitor subclasses.
 
     Visitors are responsible for visiting the data source websites and
-    engaging the appropriate extractor to download the data to the 
+    engaging the appropriate extractor to download the data to the
     designated directory.
 
     Arguments:
@@ -119,11 +119,11 @@ class Visitor(ABC):
     Attributes:
         has_changed (bool): Whether the datasource has changed
             since last extracted.
-        downloadable (bool): Indicates whether the dataset is 
-            downloadable. This means that the dataset has 
-            been updated since the last extract date AND 
-            the last extract date was greater or equal 
-            to the lifecycle. 
+        downloadable (bool): Indicates whether the dataset is
+            downloadable. This means that the dataset has
+            been updated since the last extract date AND
+            the last extract date was greater or equal
+            to the lifecycle.
         uris (list): The list of uris for the source
 
     """
@@ -218,9 +218,10 @@ class Studies(Visitor):
             self._datasource.source_updated = datetime.strptime(
                 date_string, "%m/%d/%Y")
             if self._source_updated > self._datasource.extracted:
-                self._datasource.has_changed = True:
+                self._datasource.has_changed = True
 
-            if self._datasource.has_changed and self._datasource.next_extract not > datetime.now().date():
+            if self._datasource.has_changed and \
+                    self._datasource.next_extract <= datetime.now().date():
                 self._datasource.downloadable = True
             else:
                 self._datasource.downloadable = False

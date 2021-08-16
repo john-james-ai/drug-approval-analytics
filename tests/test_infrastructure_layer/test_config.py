@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 10th 2021, 7:30:44 pm                            #
-# Modified : Tuesday, August 10th 2021, 8:09:06 pm                            #
+# Modified : Monday, August 16th 2021, 12:47:43 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -20,7 +20,7 @@
 # =========================================================================== #
 import pytest
 
-from src.platform.config import DBCredentials
+from src.application.config import DBCredentials
 # --------------------------------------------------------------------------- #
 
 
