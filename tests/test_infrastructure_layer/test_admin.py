@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 10th 2021, 1:35:36 am                            #
-# Modified : Monday, August 16th 2021, 12:50:46 am                            #
+# Modified : Monday, August 16th 2021, 7:35:03 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -66,13 +66,11 @@ class DBAdminTests:
             PGConnectionPool.return_connection(connection)
 
     @announce
-    def test_exists(self, rx2m_test_connection):
+    def test_exists(self, pg_connection):
         # First confirm database exists
-        connection = rx2m_test_connection
+        connection = pg_connection
         admin = DBAdmin()
         response = admin.exists(name=dbname, connection=connection)
-        if connection is not None:
-            PGConnectionPool.return_connection(connection)
         assert response, "Database Exists Error: Expected True"
 
     @announce
@@ -95,16 +93,18 @@ class TableAdminTests:
         connection = pg_connection
         # Create database and confirm existence
         admin = DBAdmin()
+        if admin.exists(dbname, connection):
+            admin.delete(dbname, connection)
         admin.create(name=dbname, connection=connection)
 
     @announce
-    def test_create(self, rx2m_test_connection):
-        connection = rx2m_test_connection
+    def test_batch_create(self, pg_connection):
+        connection = pg_connection
 
         # Create metadata tables
-        filepath = "src/platform/metadata/metadata_table_create.sql"
+        filepath = "src/infrastructure/database/ddl/metadata/metadata_table_create.sql"
         tadmin = TableAdmin()
-        tadmin.create(filepath=filepath, connection=connection)
+        tadmin.batch_create(filepath=filepath, connection=connection)
 
         # Confirm tables exist
         for table in tables:
@@ -119,10 +119,10 @@ class TableAdminTests:
         assert len(tablelist) == 11, print(tablelist)
 
     @announce
-    def test_delete(self, rx2m_test_connection):
-        connection = rx2m_test_connection
+    def test_delete(self, pg_connection):
+        connection = pg_connection
         admin = TableAdmin()
-        filepath = "src/platform/metadata/metadata_table_drop.sql"
+        filepath = "src/infrastructure/database/ddl/metadata/metadata_table_drop.sql"
         admin.batch_delete(filepath=filepath, connection=connection)
         # Confirm table does exist
         for table in tables:
@@ -130,60 +130,34 @@ class TableAdminTests:
             assert not alive, "TableError. Expected False Existence"
         connection.commit()
         # Recreate the tables
-        filepath = "src/platform/metadata/metadata_table_create.sql"
+        filepath = "src/infrastructure/database/ddl/metadata/metadata_table_create.sql"
         admin = TableAdmin()
-        admin.create(filepath=filepath, connection=connection)
+        admin.batch_create(filepath=filepath, connection=connection)
         for table in tables:
             alive = admin.exists(table, connection)
             assert alive, "TableError. Expected True Existence"
 
-    @announce
-    def test_load(self, sa_connection):
-        connection = sa_connection
-        admin = TableAdmin()
-
-        # Load data
-        filepath = "./data/metadata/datasources.xlsx"
-        df = pd.read_excel(filepath, index_col=0)
-        admin.load(name="datasource", data=df, connection=connection)
-
-        df.reset_index(inplace=True)
-        assert df.shape[0] == 10, print(df, df.columns)
-        assert df.shape[1] == 24, print(df, df.columns)
-
     @ announce
-    def test_read(self, rx2m_test_connection):
-        connection = rx2m_test_connection
-
-        # Get an access object to read the table
-        access = PGDao()
-        df2 = access.read(table="datasource", connection=connection)
-        assert isinstance(
-            df2, pd.DataFrame), "DAOError: Get didn't return a dataframe"
-        assert df2.shape[0] == 10, print(df2, df2.columns)
-        assert df2.shape[1] == 25, print(df2, df2.columns)
-
-    @ announce
-    def test_column_exists(self, rx2m_test_connection):
-        connection = rx2m_test_connection
+    def test_column_exists(self, pg_connection):
+        connection = pg_connection
         admin = TableAdmin()
         response = admin.column_exists(
             name='datasource', column='lifecycle', connection=connection)
         assert response, "Table error. Column exists failure"
 
     @ announce
-    def test_get_columns(self, rx2m_test_connection):
-        connection = rx2m_test_connection
+    def test_get_columns(self, pg_connection):
+        connection = pg_connection
         admin = TableAdmin()
         response = admin.get_columns(
             name='datasource', connection=connection)
         assert len(response) == 25, print(response)
 
     @ announce
-    def test_tear_down(self, rx2m_test_connection):
-        connection = rx2m_test_connection
+    def test_tear_down(self, pg_connection):
+        connection = pg_connection
         admin = TableAdmin()
         admin = TableAdmin()
-        filepath = "src/platform/metadata/metadata_table_drop.sql"
+        filepath = "src/infrastructure/database/ddl/metadata/metadata_table_drop.sql"
         admin.batch_delete(filepath=filepath, connection=connection)
         end(self)
