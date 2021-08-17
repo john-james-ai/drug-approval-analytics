@@ -3,6 +3,26 @@
 # =========================================================================== #
 # Project  : Drug Approval Analytics                                          #
 # Version  : 0.1.0                                                            #
+# File     : \src\infrastructure\database\connect.py                          #
+# Language : Python 3.9.5                                                     #
+# --------------------------------------------------------------------------  #
+# Author   : John James                                                       #
+# Company  : nov8.ai                                                          #
+# Email    : john.james@nov8.ai                                               #
+# URL      : https://github.com/john-james-sf/drug-approval-analytics         #
+# --------------------------------------------------------------------------  #
+# Created  : Tuesday, August 3rd 2021, 4:47:23 am                             #
+# Modified : Tuesday, August 17th 2021, 4:59:14 am                            #
+# Modifier : John James (john.james@nov8.ai)                                  #
+# --------------------------------------------------------------------------- #
+# License  : BSD 3-clause "New" or "Revised" License                          #
+# Copyright: (c) 2021 nov8.ai                                                 #
+# =========================================================================== #
+#!/usr/bin/env python3
+# -*- coding:utf-8 -*-
+# =========================================================================== #
+# Project  : Drug Approval Analytics                                          #
+# Version  : 0.1.0                                                            #
 # File     : \src\platform\core\database.py                                   #
 # Language : Python 3.9.5                                                     #
 # --------------------------------------------------------------------------  #
@@ -12,7 +32,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 4:47:23 am                             #
-# Modified : Monday, August 16th 2021, 3:17:10 am                             #
+# Modified : Monday, August 16th 2021, 8:58:54 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -118,7 +138,7 @@ class Command:
 # --------------------------------------------------------------------------- #
 
 
-class ConnectionPool(ABC):
+class AbstractConnectionPool(ABC):
     """Interface for database connection factories."""
 
     __connection_pool = None
@@ -151,7 +171,7 @@ class ConnectionPool(ABC):
 # --------------------------------------------------------------------------- #
 #                    POSTGRES CONNECTION POOL CLASS                           #
 # --------------------------------------------------------------------------- #
-class PGConnectionPool(ConnectionPool):
+class PGConnectionPool(AbstractConnectionPool):
     """Postgres database connection pool."""
 
     __connection_pool = None
@@ -203,7 +223,7 @@ class PGConnectionPool(ConnectionPool):
 # --------------------------------------------------------------------------- #
 #                     SQLALCHEMY CONNECTOR POOL CLASS                         #
 # --------------------------------------------------------------------------- #
-class SAConnectionPool(ConnectionPool):
+class SAConnectionPool(AbstractConnectionPool):
     """SQLAlchemy database connection pool."""
 
     __connection_pool = None
@@ -264,62 +284,47 @@ class SAConnectionPool(ConnectionPool):
             "Closed all {} connections.".format(
                 SAConnectionPool.__class__.__name__,))
 
+
 # --------------------------------------------------------------------------- #
-#                           CONNECTION FACTORY                                #
-# --------------------------------------------------------------------------- #
-
-
-class ConnectionFactory:
-    """Creates connection objects. """
-
-    def __init__(self, credentials: DBCredentials,
-                 connection_pool: ConnectionPool,
-                 sequel: Sequel,
-                 command: Command):
-        self._connection_pool = connection_pool.intialize(credentials)
-        self._sequel = sequel
-        self._command = command
-
-    def build_connection(self):
-        connection = Connection(self._connection_pool,
-                                self._sequel, self._command)
-        return connection
-# --------------------------------------------------------------------------- #
-#                          CONNECTION BASE CLASS                              #
+#                          CONNECTION POOL CLASS                              #
 # --------------------------------------------------------------------------- #
 
 
 class Connection:
-    """Database Connection Class."""
+    """Encapsulates a connection pool and the behavior of its connections.
 
-    def __init__(connection_pool: ConnectionPool,
-                 sequel: Sequel,
-                 command: Command) -> None:
-        self._connection_pool = connection_pool
-        self._sequel = sequel
-        self._command = command
+    Arguments:
+        credentials (DBCredentials): Credentials including the database name.
+
+    Dependencies:
+        PGConnectionPool: Pool of connections to the database.
+
+    Raises:
+        DatabaseError if database does not exist.
+    """
+
+    def __init__(self, credentials: DBCredentials) -> None:
+        self._connection_pool = PGConnectionPool.initialize(credentials)
         self._connection = None
+        self._autocommit = True
 
     def __del__(self):
-        self._connection.close()
         self._connection_pool.return_connection(self._connection)
-        self._connection_pool.close_all_connections()
 
-    def begin_transaction(self, isolation_level: str = None):
-        self._connection = self._connection_pool.get_connection()
-        self._connection.set_session(isolation_level)
-        sequel = self._sequel.begin()
-        self._command.execute(sequel, self._connection)
+    def begin_transaction(self):
+        self._autocommit = False
+        self.open_connection()
 
     def end_transaction(self):
-        self._connection.commit()
+        self.commit()
 
-    def open(self):
-        if not self._connection:
+    def open_connection(self) -> None:
+        if self._connection is None or self._connection.closed:
             self._connection = self._connection_pool.get_connection()
+        self._connection.set_session(autocommit=self._autocommit)
 
-    def close(self):
-        self._connection.close()
+    def close_connection(self):
+        self._connection.return_connection(self._connection)
 
     def commit(self):
         self._connection.commit()
@@ -327,11 +332,26 @@ class Connection:
     def rollback(self):
         self._connection.rollback()
 
-    def change_database(self, credentials: DBCredentials) -> None:
-        self._connection_pool.return_connection(self._connection)
-        self._connection_pool.initialize(credentials)
-        self._connection = self._connection_pool.get_connection()
+    @property
+    def autocommit(self) -> bool:
+        return self._autocommit
+
+    @autocommit.setter
+    def autocommit(self, autocommit) -> None:
+        self._autocommit = autocommit
+        if not self.closed:
+            self._connection.set_session(autocommit=self._autocommit)
 
     @property
     def cursor(self):
         return self._connection.cursor
+
+    @property
+    def closed(self):
+        if self._connection:
+            if self._connection.closed:
+                return True
+            else:
+                return False
+        else:
+            return True

@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Monday, August 16th 2021, 3:59:00 am                             #
+# Modified : Tuesday, August 17th 2021, 6:48:02 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -172,6 +172,55 @@ class DatabaseSequel(AdminSequelBase):
         )
 
         return sequel
+
+# --------------------------------------------------------------------------- #
+#                             DATABASE SCHEMA                                 #
+# --------------------------------------------------------------------------- #
+
+
+class SchemaSequel(AdminSequelBase):
+
+    def create(self, name: str) -> Sequel:
+        sequel = Sequel(
+            name="create_schema",
+            description="Created SCHEMA IF NOT EXISTS {}".format(name),
+            query_context='admin',
+            object_type='database',
+            object_name=name,
+            cmd=sql.SQL("CREATE SCHEMA {};").format(
+                sql.Identifier(name))
+        )
+
+        return sequel
+
+    def exists(self, name: str) -> Sequel:
+        sequel = Sequel(
+            name="database exists",
+            description="Checked existence of {} database.".format(name),
+            query_context='admin',
+            object_type='database',
+            object_name=name,
+            cmd=sql.SQL("""SELECT EXISTS(
+                    SELECT schema_name FROM information_schema.schemata
+                    WHERE lower(schema_name) = lower(%s));"""),
+            params=tuple((name,))
+        )
+
+        return sequel
+
+    def delete(self, name: str) -> Sequel:
+        sequel = Sequel(
+            name="drop_schema",
+            description="Dropped schema {}.".format(name),
+            query_context='admin',
+            object_type='database',
+            object_name=name,
+            cmd=sql.SQL("DROP SCHEMA {};").format(
+                sql.Identifier(name))
+        )
+
+        return sequel
+
 
 # --------------------------------------------------------------------------- #
 #                              TABLES SEQUEL                                  #

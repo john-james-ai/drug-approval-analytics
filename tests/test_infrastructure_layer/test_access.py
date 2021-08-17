@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, August 8th 2021, 8:31:22 am                              #
-# Modified : Monday, August 16th 2021, 4:03:09 am                             #
+# Modified : Tuesday, August 17th 2021, 4:49:24 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -23,8 +23,8 @@ from datetime import datetime
 import pandas as pd
 import logging
 
-from src.infrastructure.database.context import PGDao
-from src.infrastructure.database.admin import DBAdmin, TableAdmin
+from src.infrastructure.data.context import PGDao
+from src.infrastructure.data.admin import DBAdmin, TableAdmin
 from tests.test_utils.debugging import announce
 logger = logging.getLogger(__name__)
 # -----------------------------------------------------------------------------#
@@ -34,7 +34,7 @@ tables = ["datasourceevent", "featuretransform",
           "datasource", "feature", "dataset"]
 
 
-dbname = "rx2m_test"
+dbname = "test"
 
 
 @pytest.mark.context
@@ -148,14 +148,14 @@ class AccessTests:
 
     @announce
     def test_teardown(self, delete_tables, delete_user,
-                      pg_connection, rx2m_test_connection):
-        connection = rx2m_test_connection
+                      pg_connection, test_connection):
+        connection = test_connection
         connection.close()
         delete_tables
         delete_user
         connection = pg_connection
         admin = DBAdmin()
-        admin.terminate_database_processes("rx2m_test", connection)
+        admin.terminate_database_processes("test", connection)
         logger.debug("\n\nDatabase activity\n")
         # logger.debug(admin.activity(connection))
         # admin = UserAdmin()

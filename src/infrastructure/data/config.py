@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 15th 2021, 5:47:58 pm                             #
-# Modified : Friday, August 13th 2021, 7:42:31 am                             #
+# Modified : Tuesday, August 17th 2021, 5:31:05 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -168,6 +168,7 @@ class DBCredentials:
         params['dbname'] = dbname
         params['port'] = port
         config.set_section(section=section, params=params)
+        self._credentials = config.get_section(section=section)
 
     def read(self, name: str) -> dict:
         self.load(name)
@@ -176,7 +177,7 @@ class DBCredentials:
     def delete(self, name: str) -> None:
         Config(self._filepath).delete_section(name)
 
-    def load(self, name: str):
+    def get(self, name: str):
         self._credentials = Config(self._filepath).get_section(name)
         return self
 
@@ -233,5 +234,5 @@ class DataSourceConfig:
 # Database credentials
 pg_login = DBCredentials().load('postgres')
 rx2m_login = DBCredentials().load('rx2m')
-rx2m_test_login = DBCredentials().load('rx2m_test')
+test_login = DBCredentials().load('test')
 aact_login = DBCredentials().load('AACT')

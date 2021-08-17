@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 10th 2021, 1:35:36 am                            #
-# Modified : Monday, August 16th 2021, 7:35:03 am                             #
+# Modified : Tuesday, August 17th 2021, 4:49:24 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -22,10 +22,10 @@ import pytest
 import logging
 import pandas as pd
 
-from src.infrastructure.database.admin import DBAdmin, TableAdmin
-from src.infrastructure.database.context import PGDao
-from src.infrastructure.database.connect import PGConnectionPool
-from src.application.config import pg_login, rx2m_test_login
+from src.infrastructure.data.admin import DBAdmin, TableAdmin
+from src.infrastructure.data.context import PGDao
+from src.infrastructure.data.connect import PGConnectionPool
+from src.application.config import pg_login, test_login
 from tests.test_utils.print import start, end
 from tests.test_utils.debugging import announce
 logger = logging.getLogger(__name__)
@@ -36,7 +36,7 @@ tables = ["datasourceevent", "featuretransform",
           "datasource", "feature", "dataset"]
 
 
-dbname = "rx2m_test"
+dbname = "test"
 
 
 @pytest.mark.dbadmin
@@ -113,7 +113,7 @@ class TableAdminTests:
 
         # Get list of tables
         tablelist = tadmin.tables(
-            rx2m_test_login.dbname, connection=connection)
+            test_login.dbname, connection=connection)
         if connection is not None:
             PGConnectionPool.return_connection(connection)
         assert len(tablelist) == 11, print(tablelist)

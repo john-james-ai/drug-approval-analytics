@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Saturday, July 31st 2021, 3:44:38 am                             #
-# Modified : Monday, August 16th 2021, 12:50:46 am                            #
+# Modified : Monday, August 16th 2021, 7:40:49 am                             #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -39,7 +39,7 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
 class Repository(ABC):
 
-    def __init__(self, context; Context) -> None:
+    def __init__(self, context: Context) -> None:
         self._context = context
         self._data = None
         self._index = 0

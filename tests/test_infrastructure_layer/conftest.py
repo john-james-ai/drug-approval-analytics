@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, August 8th 2021, 8:37:47 am                              #
-# Modified : Monday, August 16th 2021, 3:42:58 am                             #
+# Modified : Tuesday, August 17th 2021, 4:49:24 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -23,11 +23,11 @@ import logging
 import pytest
 import pandas as pd
 
-from src.infrastructure.database.admin import DBAdmin, TableAdmin, UserAdmin
-from src.infrastructure.database.connect import PGConnectionPool
-from src.infrastructure.database.connect import SAConnectionPool
-from src.infrastructure.database.connect import Connection
-from src.application.config import pg_login, rx2m_test_login
+from src.infrastructure.data.admin import DBAdmin, TableAdmin, UserAdmin
+from src.infrastructure.data.connect import PGConnectionPool
+from src.infrastructure.data.connect import SAConnectionPool
+from src.infrastructure.data.connect import Connection
+from src.application.config import pg_login, test_login
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
@@ -37,7 +37,7 @@ tables = ["datasourceevent", "featuretransform",
           "datasource", "feature", "dataset"]
 
 
-dbname = "rx2m_test"
+dbname = "test"
 
 
 @pytest.fixture(scope="class")
@@ -50,9 +50,9 @@ def pg_connection():
 
 
 @pytest.fixture(scope="class")
-def rx2m_test_connection():
+def test_connection():
     """Builds a test database and returns a connection."""
-    PGConnectionPool.initialize(rx2m_test_login)
+    PGConnectionPool.initialize(test_login)
     connection = PGConnectionPool.get_connection()
     connection.set_session(autocommit=True)
     return connection
@@ -61,7 +61,7 @@ def rx2m_test_connection():
 @pytest.fixture(scope="class")
 def sa_connection():
     """Builds a test database and returns a connection."""
-    SAConnectionPool.initialize(rx2m_test_login)
+    SAConnectionPool.initialize(test_login)
     return SAConnectionPool.get_connection()
 
 
@@ -69,20 +69,20 @@ def sa_connection():
 def create_database(pg_connection):
     connection = pg_connection
     admin = DBAdmin()
-    admin.delete(rx2m_test_login.dbname, connection)
-    admin.create(rx2m_test_login.dbname, connection)
+    admin.delete(test_login.dbname, connection)
+    admin.create(test_login.dbname, connection)
 
 
 @pytest.fixture(scope="class")
 def delete_database(pg_connection):
     connection = pg_connection
     admin = DBAdmin()
-    admin.delete(rx2m_test_login.dbname, connection)
+    admin.delete(test_login.dbname, connection)
 
 
 @pytest.fixture(scope="class")
-def create_tables(rx2m_test_connection):
-    connection = rx2m_test_connection
+def create_tables(test_connection):
+    connection = test_connection
     admin = TableAdmin()
     if admin.exists("parameter", connection):
         filepath = "src/infrastructure/database/ddl/metadata/metadata_table_drop.sql"
@@ -92,8 +92,8 @@ def create_tables(rx2m_test_connection):
 
 
 @pytest.fixture(scope="class")
-def delete_tables(rx2m_test_connection):
-    connection = rx2m_test_connection
+def delete_tables(test_connection):
+    connection = test_connection
     admin = TableAdmin()
     filepath = "src/infrastructure/database/ddl/metadata/metadata_table_drop.sql"
     admin.batch_delete(filepath, connection)
@@ -103,25 +103,25 @@ def delete_tables(rx2m_test_connection):
 def create_user(pg_connection):
     connection = pg_connection
     admin = UserAdmin()
-    if admin.exists(rx2m_test_login.user, connection):
-        admin.revoke(rx2m_test_login.user, rx2m_test_login.dbname, connection)
-        admin.delete(rx2m_test_login.user, connection)
-    admin.create(rx2m_test_login.user, rx2m_test_login.password, connection)
-    admin.grant(rx2m_test_login.user, rx2m_test_login.dbname, connection)
+    if admin.exists(test_login.user, connection):
+        admin.revoke(test_login.user, test_login.dbname, connection)
+        admin.delete(test_login.user, connection)
+    admin.create(test_login.user, test_login.password, connection)
+    admin.grant(test_login.user, test_login.dbname, connection)
 
 
 @pytest.fixture(scope="class")
 def delete_user(pg_connection):
     connection = pg_connection
     admin = UserAdmin()
-    if admin.exists(rx2m_test_login.user, connection):
-        admin.revoke(rx2m_test_login.user, rx2m_test_login.dbname, connection)
-        admin.delete(rx2m_test_login.user, connection)
+    if admin.exists(test_login.user, connection):
+        admin.revoke(test_login.user, test_login.dbname, connection)
+        admin.delete(test_login.user, connection)
 
 
 @pytest.fixture(scope="class")
-def load_table(rx2m_test_connection, sa_connection):
-    connection = rx2m_test_connection
+def load_table(test_connection, sa_connection):
+    connection = test_connection
     connection_sa = sa_connection
     admin = TableAdmin()
     filepath = "./data/metadata/datasources.xlsx"
