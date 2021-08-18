@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Monday, July 19th 2021, 2:26:36 pm                               #
-# Modified : Tuesday, August 17th 2021, 6:48:02 am                            #
+# Modified : Wednesday, August 18th 2021, 8:50:27 am                          #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -188,7 +188,8 @@ class SchemaSequel(AdminSequelBase):
             object_type='database',
             object_name=name,
             cmd=sql.SQL("CREATE SCHEMA {};").format(
-                sql.Identifier(name))
+                sql.Identifier(name)
+            )
         )
 
         return sequel
@@ -450,10 +451,8 @@ class UserSequel(AdminSequelBase):
             query_context='admin',
             object_type='user',
             object_name=name,
-            cmd=sql.SQL("""REVOKE ALL PRIVILEGES ON DATABASE {} FROM {} ;
-            REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM {};
-            REVOKE ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public FROM {};
-            REVOKE ALL PRIVILEGES ON ALL FUNCTIONS IN SCHEMA public FROM {};""")
+            cmd=sql.SQL(
+                """REVOKE ALL PRIVILEGES ON DATABASE {} FROM {} CASCADE;""")
             .format(
                 sql.Identifier(dbname),
                 sql.Identifier(name),

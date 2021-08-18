@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Saturday, July 17th 2021, 2:00:13 pm                             #
-# Modified : Monday, August 16th 2021, 12:47:43 am                            #
+# Modified : Tuesday, August 17th 2021, 7:09:32 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -38,6 +38,6 @@ import pandas as pd
 
 from ..platform.metadata.repository import DataSource, DataSourceEvent
 from ..platform.base import Operator
-from src.application.config import DBCredentials
+from src.infrastructure.data.config import DBCredentials
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)

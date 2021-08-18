@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 12:27:05 pm                            #
-# Modified : Monday, August 16th 2021, 12:50:46 am                            #
+# Modified : Wednesday, August 18th 2021, 1:43:26 am                          #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -124,4 +124,4 @@ def setup(credentials: DBCredentials) -> None:
     # create_labels_tables(connection)
     # create_chembl_tables(connection)
 
-    # connector.return_connection(connection)
+    # connector.close(connection)

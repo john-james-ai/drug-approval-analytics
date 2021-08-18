@@ -3,7 +3,7 @@
 # =========================================================================== #
 # Project  : Drug Approval Analytics                                          #
 # Version  : 0.1.0                                                            #
-# File     : \src\infrastructure\database\connect.py                          #
+# File     : \src\infrastructure\data\database.py                             #
 # Language : Python 3.9.5                                                     #
 # --------------------------------------------------------------------------  #
 # Author   : John James                                                       #
@@ -11,8 +11,8 @@
 # Email    : john.james@nov8.ai                                               #
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
-# Created  : Tuesday, August 3rd 2021, 4:47:23 am                             #
-# Modified : Tuesday, August 17th 2021, 7:03:38 am                            #
+# Created  : Monday, August 16th 2021, 9:50:45 am                             #
+# Modified : Wednesday, August 18th 2021, 10:45:07 am                         #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -27,6 +27,7 @@ from psycopg2 import pool
 
 
 from .sequel import DatabaseSequel, TableSequel, UserSequel, SchemaSequel
+from .sequel import Sequel
 from .connect import PGConnectionPool, SAConnectionPool, Connection
 from .config import DBCredentials
 from ...utils.logger import exception_handler
@@ -44,57 +45,93 @@ class DatabaseConfiguration:
     Arguments:
         name (str): The name of the database
         schema (str): The name of the table schema
-        replace_if_exists (bool): If true, delete database if it exists.
-        dba_credentials (DBCredentials): Postgres database credentials
-        owner_pg_credentials (DBCredentials): Owner credentials for postgres
-        owner_db_credentials (DBCredentials): Owner credentials for new database
+        dba_pg_credentials (DBCredentials): Postgres database credentials
+        dba_db_credentials (DBCredentials): Postgres credentials on new database        
+        user_db_credentials (DBCredentials): User credentials for new database
         create_table_ddl_filepath (str): Path to create table ddl.
         drop_table_ddl_filepath (str): Path to drop table ddl.
         table_data (dict): Dictionary of tablename (key), data (value)
             pairs to be loaded as part of the database initialization
+        replace_if_exists (bool): If true, delete database if it exists.
+            If False and any of the database entities exist, an
+            exception will be raised.
+
+        Raises:
+            [Entity] already exists: If replace_if_exists is False and
+            any entity owner, database, or tables, already exist.
 
 
     """
 
     def __init__(self, name: str,
                  schema: str,
-                 dba_credentials: DBCredentials,
-                 owner_pg_credentials: DBCredentials,
-                 owner_db_credentials: DBCredentials,
+                 dba_pg_credentials: DBCredentials,
+                 dba_db_credentials: DBCredentials,
+                 user_db_credentials: DBCredentials,
                  create_table_ddl_filepath: str,
                  drop_table_ddl_filepath: str,
                  table_data: dict,
-                 replace_if_exists: bool = False) -> None:
+                 replace_if_exists: bool = True) -> None:
 
         self._name = name
-        self._schema - schema
-        self._dba_credentials = dba_credentials
-        self._owner_pg_credentials = owner_pg_credentials
-        self._owner_db_credentials = owner_db_credentials
+        self._schema = schema
+        self._dba_pg_credentials = dba_pg_credentials
+        self._dba_db_credentials = dba_db_credentials
+        self._user_db_credentials = user_db_credentials
         self._create_table_ddl_filepath = create_table_ddl_filepath
         self._drop_table_ddl_filepath = drop_table_ddl_filepath
         self._table_data = table_data
         self._replace_if_exists = replace_if_exists
+        self._validate()
+
+    def _validate(self):
+
+        if self.dba_db_credentials.dbname != self.user_db_credentials.dbname \
+            or self.dba_db_credentials.dbname != self._name \
+                or self.user_db_credentials.dbname != self._name:
+            msg = """BuilderConfigError: DBA dbname {} and
+            owner dbname {} must match and both must equal {}.""".format(
+                self.dba_db_credentials.dbname, self.user_db_credentials.dbname,
+                self._name
+            )
+            logger.error(msg)
+            raise ValueError(msg)
 
     @property
     def name(self) -> str:
         return self._name
 
     @property
-    def dba_credentials(self) -> DBCredentials:
-        return self._owner_pg_credentials
+    def schema(self) -> str:
+        return self._schema
 
     @property
-    def owner_pg_credentials(self) -> DBCredentials:
-        return self._dba_credentials
+    def dba_pg_credentials(self) -> DBCredentials:
+        return self._dba_pg_credentials
 
     @property
-    def schema_table_ddl(self) -> str:
-        return self._schema_table_ddl
+    def dba_db_credentials(self) -> DBCredentials:
+        return self._dba_db_credentials
+
+    @property
+    def user_db_credentials(self) -> DBCredentials:
+        return self._user_db_credentials
+
+    @property
+    def create_table_ddl_filepath(self) -> str:
+        return self._create_table_ddl_filepath
+
+    @property
+    def drop_table_ddl_filepath(self) -> str:
+        return self._drop_table_ddl_filepath
 
     @property
     def table_data(self) -> dict:
         return self._table_data
+
+    @property
+    def replace_if_exists(self) -> str:
+        return self._replace_if_exists
 
 # --------------------------------------------------------------------------- #
 #                          DATABASE BUILDER                                   #
@@ -106,12 +143,12 @@ class DatabaseBuilder(ABC):
 
     Arguments:
         configuration (DatabaseConfiguration): Object containing the name,
-            connection dba_credentials, the location of table creation ddl, and
+            connection dba_pg_credentials, the location of table creation ddl, and
             data to be loaded at initialization.
     """
 
     def __init__(self, configuration: DatabaseConfiguration) -> None:
-        self._configuration = configuration
+        self._builder_config = configuration
         self._database = None
 
     @abstractmethod
@@ -119,7 +156,7 @@ class DatabaseBuilder(ABC):
         pass
 
     @abstractmethod
-    def build_owner(self) -> None:
+    def build_user(self) -> None:
         pass
 
     @abstractmethod
@@ -128,10 +165,6 @@ class DatabaseBuilder(ABC):
 
     @abstractmethod
     def build_schema(self) -> None:
-        pass
-
-    @abstractmethod
-    def build_ddl(self) -> None:
         pass
 
     @abstractmethod
@@ -147,14 +180,19 @@ class DatabaseBuilder(ABC):
     def database(self) -> None:
         pass
 
+    @property
+    def config(self) -> DatabaseConfiguration:
+        return self._builder_config
 
 # --------------------------------------------------------------------------- #
 #                         METADATABASE BUILDER                                #
 # --------------------------------------------------------------------------- #
+
+
 class MetaDatabaseBuilder(DatabaseBuilder):
     """Metadata database builder
 
-    The superuser having dba_credentials creates the owner role and grants
+    The superuser having dba_pg_credentials creates the owner role and grants
     privilges on the postgres database. Next, the owner creates the
     database, then creates another set of credentials for the new database.
     This 3rd user will build and load the tables. All users have two
@@ -163,7 +201,7 @@ class MetaDatabaseBuilder(DatabaseBuilder):
 
     Arguments:
         configuration (DatabaseConfiguration): Object containing the name,
-            connection dba_credentials, the location of table creation ddl, and
+            connection dba_pg_credentials, the location of table creation ddl, and
             data to be loaded at initialization.
     """
 
@@ -171,97 +209,162 @@ class MetaDatabaseBuilder(DatabaseBuilder):
         super(MetaDatabaseBuilder, self).__init__(configuration)
 
     @exception_handler()
-    def reset(self) -> None:
-        self._database = Database()
+    def _rollback_user(self, user: str, dbname: str, connection: Connection) -> None:
+        # Confirm user exists
+        if not self._database.user_exists(user, connection):
+            msg = "\n\nRollback Warning: User {} does not exist. No action taken".format(
+                user)
+            logger.warn(msg)
+            return
+
+        # Remove user. This revokes privileges on the database and any dependent
+        # databases, then deletes the user.
+        self._database.remove_user(user, dbname, connection)
+        msg = "\n\nRollback: User {} removed from {}".format(
+            user, connection.dbname)
+        logger.info(msg)
 
     @exception_handler()
-    def build_owner(self) -> None:
-        connection = Connection(self._configuration.dba_credentials)
-        connection.open_connection()
+    def _rollback_tables(self, connection: Connection) -> None:
+        self._database.delete_tables(
+            self._builder_config.drop_table_ddl_filepath, connection)
+        msg = "\n\nRollback: Tables removed from {}".format(
+            connection.dbname)
+        logger.info(msg)
 
-        # Create user and grant access to postgres database
-        if not self._database.user_exists(
-                self._configuration.owner_pg_credentials.name, connection):
-            self._database.create_user(self._configuration.owner_pg_credentials.name,
-                                       self._configuration.owner_pg_credentials.password,
-                                       connection)
-            self._database.grant(self._configuration.owner_pg_credentials.name,
-                                 self._name, connection)
+    @exception_handler()
+    def _rollback_database(self, connection: Connection) -> None:
+        # Confirm the database to delete isn't the current database.
+        if self._builder_config.name == connection.dbname:
+            msg = "\n\nRollback Warning: Active database {} cannot be dropped. No action taken.".format(
+                connection.dbname)
+            logger.warn(msg)
+            return
 
-        # Create user credentials for new database
-        config = DBCredentials()
-        config.create(name=self._configuration.owner_db_credentials.name,
-                      user=self._configuration.owner_db_credentials.user,
-                      password=self._configuration.owner_db_credentials.password,
-                      host=self._configuration.owner_db_credentials.host,
-                      dbname=self._configuration.owner_db_credentials.dbname,
-                      port=self._configuration.owner_pg_credentials.port
-                      )
+        self._database.delete(self._builder_config.name, connection)
+        msg = "\n\nRollback: Database {} dropped.".format(
+            self._builder_config.name)
+        logger.info(msg)
 
-        connection.commit()
-        connection.close_connection()
+    @exception_handler()
+    def _update_ddl(self) -> None:
+
+        if not self._builder_config.replace_if_exists:
+            # If not replacing, create tables only if they don't already exist
+            string_replace(self._builder_config.create_table_ddl_filepath,
+                           'CREATE TABLE public', 'CREATE TABLE IF NOT EXISTS public')
+
+        # Add IF EXISTS option to DROP TABLE
+        string_replace(self._builder_config.drop_table_ddl_filepath,
+                       'DROP TABLE public', "DROP TABLE IF EXISTS public")
+
+        # Update CREATE table DDL with requested schema.
+        string_replace(self._builder_config.create_table_ddl_filepath,
+                       'public', self._builder_config.schema)
+
+        # Update DROP table DDL with requested schema.
+        string_replace(self._builder_config.drop_table_ddl_filepath,
+                       'public', self._builder_config.schema)
+
+    # --------------------------------------------------------------------------- #
+    @exception_handler()
+    def reset(self) -> None:
+        # Instantiate a database object
+        self._database = Database()
+
+        # Add schema and IF EXISTS type options to DDL
+        self._update_ddl()
+
+        # Grab a connection in autocommit mode. Database changes can't be made
+        # in transaction mode.
+        connection = Connection(self._builder_config.dba_db_credentials,
+                                autocommit=True, postgres=True)
+        with connection:
+            # If the database already exists
+            if self._database.exists(self._builder_config.name, connection):
+
+                # If replace_if_exists is True
+                if self._builder_config.replace_if_exists:
+
+                    # Rollback tables
+                    self._rollback_tables(connection)
+
+                    self._rollback_user(
+                        self._builder_config.user_db_credentials.user,
+                        self._builder_config.name,
+                        connection)
+
+                else:
+                    msg = "DatabaseError: {} already exists.".format(
+                        self._builder_config.name)
+                    logger.error(msg)
+                    raise DatabaseError(msg)
 
     @exception_handler()
     def build_database(self) -> None:
-        connection = Connection(self._configuration.owner_db_credentials)
-        connection.open_connection()
-        if self._database.exists(self._name, connection):
-            if self._replace_if_exists:
-                self._database.delete(self._name, connection)
-                self._database.create(self._name, connection)
-            else:
-                pass
-        else:
-            self._database.create(self._name, connection)
-        connection.commit()
-        connection.close_connection()
+
+        connection = Connection(
+            self._builder_config.dba_pg_credentials, autocommit=True, postgres=True)
+
+        # Rollback database
+        self._rollback_database(connection)
+        # Create the database
+        self._database.create(self._builder_config.name, connection)
 
     @exception_handler()
-    def build_schema(self):
-        connection = Connection(self._configuration.owner_db_credentials)
-        connection.open_connection()
-        self._database.create_schema(self._schema, connection)
+    def build_schema(self) -> None:
+        # User creates new transaction on new database.
+        connection = Connection(self._builder_config.dba_db_credentials,
+                                autocommit=True, postgres=True)
 
-        connection.commit()
-        connection.close_connection()
-
-    @exception_handler()
-    def build_ddl(self):
-        string_replace(self._configuration.create_table_ddl_filepath,
-                       'public', configuration.schema)
+        with connection:
+            # User creates the schema
+            self._database.create_schema(name=self._builder_config.schema,
+                                         connection=connection)
 
     @exception_handler()
     def build_tables(self) -> None:
-        # First need to hackerously change the schema in the ddl from 'public'
-        # to the designated schema.
-        connection = Connection(configuration.dba_credentials)
-        connection.begin_transaction()
-        # If replace if exists, drop the tables if they exist.
-        if self._configuration._replace_if_exists:
-            self._database.delete(
-                self._configuration._drop_table_ddl_filepath, connection)
-        self._database.create_tables(
-            self._configuration.create_table_ddl_filepath, connection)
+        connection = Connection(self._builder_config.dba_db_credentials,
+                                autocommit=True, postgres=True)
 
-        connection.end_transaction()
-        connection.close_connection()
+        with connection:
+            self._database.create_tables(
+                self._builder_config.create_table_ddl_filepath, connection)
 
     @exception_handler()
     def initialize(self) -> None:
-        connection = Connection(configuration.dba_credentials)
-        connection.begin_transaction()
-        schema = self._configuration.schema
+        # Initialize database with data source information
+
+        schema = self._builder_config.schema
         if_exists = 'fail'
 
-        if self._configuration._replace_if_exists:
-            if_exists = 'replace'
+        if self._builder_config._replace_if_exists:
+            if_exists = 'append'
 
-        for table, data in configuration.table_data.items():
-            data.to_sql(name=table, con=connection, schema=schema,
-                        if_exists=if_exists, **kwargs)
+        connection = Connection(self._builder_config.dba_db_credentials,
+                                autocommit=True, postgres=False)
 
-        connection.end_transaction()
-        connection.close_connection()
+        for table, data in self._builder_config.table_data.items():
+            data.to_sql(name=table, con=connection.cursor, schema=schema,
+                        if_exists=if_exists)
+
+    @exception_handler()
+    def build_user(self) -> None:
+        # Create a new transaction on the new database
+        connection = Connection(self._builder_config.dba_db_credentials,
+                                autocommit=True, postgres=True)
+        with connection:
+
+            # Create the user on the new database
+            self._database.create_user(self._builder_config.user_db_credentials.user,
+                                       self._builder_config.user_db_credentials.password,
+                                       connection)
+
+            self._database.grant(self._builder_config.user_db_credentials.user,
+                                 self._builder_config.user_db_credentials.dbname,
+                                 connection)
+
+        # Viola
 
     @property
     def database(self) -> None:
@@ -295,7 +398,7 @@ class Database(ABC):
         self._database_sequel = DatabaseSequel()
         self._table_sequel = TableSequel()
         self._user_sequel = UserSequel()
-        self._schema_sequel = SchemaSequel
+        self._schema_sequel = SchemaSequel()
 
     # ----------------------------------------------------------------------- #
     #                             DATABASE                                    #
@@ -311,17 +414,12 @@ class Database(ABC):
         Returns:
             Response object containing the results from database command.
         """
-        # Can't create database in a transaction block. Save current value
-        # for autocommit and set the property to True for the create
-        # process, then revert autocommit property to original value.
-        autocommit = connection.autocommit
-        connection.autocommit = True
-
+        # Can't create database in a transaction block. First approach was
+        # to save the current autocommit value and reset it to False for
+        # the create command and then setting back afterwards. Second
+        # transaction management is not create's job.
         sequel = self._database_sequel.create(name)
         response = self.execute(sequel, connection)
-
-        connection.autcommit = autocommit
-
         return response
 
     @exception_handler()
@@ -336,10 +434,9 @@ class Database(ABC):
             Response object containing the results from database command.
         """
 
-        sequel = self._database_sequel.create(name)
+        sequel = self._database_sequel.exists(name)
         response = self.execute(sequel, connection)
-        connection.return_connection()
-        return response
+        return response.fetchall[0][0]
 
     @exception_handler()
     def delete(self, name: str, connection: Connection) -> Response:
@@ -352,17 +449,8 @@ class Database(ABC):
         Returns:
             Response object containing the results from database command.
         """
-        # Can't delete database in a transaction block. Save current value
-        # for autocommit and set the property to True for the delete
-        # process, then revert autocommit property to original value.
-        autocommit = connection.autocommit
-        connection.autocommit = True
-
         sequel = self._database_sequel.delete(name)
         response = self.execute(sequel, connection)
-
-        connection.autcommit = autocommit
-
         return response
 
     @exception_handler()
@@ -398,14 +486,14 @@ class Database(ABC):
         """Backs up database to the designated filepath
 
         Arguments
-            dba_credentials (dict): Credentials for the database
+            dba_pg_credentials (dict): Credentials for the database
             filepath(str): Location of the backup file.
 
         """
-        USER = self._dba_credentials['user']
-        HOST = self._dba_credentials['host']
-        PORT = self._dba_credentials['port']
-        PASSWORD = self._dba_credentials['password']
+        USER = self._dba_pg_credentials['user']
+        HOST = self._dba_pg_credentials['host']
+        PORT = self._dba_pg_credentials['port']
+        PASSWORD = self._dba_pg_credentials['password']
         DBNAME = dbname
 
         command = ['pg_dump',
@@ -426,14 +514,14 @@ class Database(ABC):
     @exception_handler()
     def restore(self, dbname: str, filepath: str) -> None:
 
-        USER = self._dba_credentials['user']
-        HOST = self._dba_credentials['host']
-        PASSWORD = self._dba_credentials['password']
-        PORT = self._dba_credentials['port']
+        USER = self._dba_pg_credentials['user']
+        HOST = self._dba_pg_credentials['host']
+        PASSWORD = self._dba_pg_credentials['password']
+        PORT = self._dba_pg_credentials['port']
         DBNAME = dbname
 
         command = ['pg_restore',
-                   '--no-owner_pg_credentials',
+                   '--no-owner',
                    '--dbname=Psycopg2ql://{}:{}@{}:{}/{}'.format(USER,
                                                                  PASSWORD,
                                                                  HOST,
@@ -481,7 +569,7 @@ class Database(ABC):
 
         """
         sequel = self._schema_sequel.create(name)
-        self.execute_ddl(sequel, connection)
+        self.execute(sequel, connection)
 
     @exception_handler()
     def schema_exists(self, name: str,
@@ -706,9 +794,9 @@ class Database(ABC):
         """Grants user privileges to database.
 
         Arguments:
-            connection (Connection): Connection to the database
-            user (str): The username
+            name (str): The username
             dbname (str): The name of the database
+            connection (Connection): Connection to the database
         """
 
         sequel = self._user_sequel.grant(name, dbname)
@@ -720,13 +808,27 @@ class Database(ABC):
         """Revokes user privileges to database.
 
         Arguments:
-            connection (Connection): Connection to the database
             name (str): The username
             dbname (str): The name of the database
+            connection (Connection): Connection to the database
         """
 
         sequel = self._user_sequel.revoke(name, dbname)
         self.execute(sequel, connection)
+
+    @exception_handler()
+    def remove_user(self, name: str, dbname: str, connection: Connection) -> None:
+        """Revokes all privileges and drops user.
+
+        Arguments:
+            name (str): The username
+            connection (Connection): Connection to the database
+
+
+        """
+        if self.user_exists(name, connection):
+            self.revoke(name, dbname, connection)
+            self.delete_user(name, connection)
 
     # ----------------------------------------------------------------------- #
     #                              EXECUTE                                    #

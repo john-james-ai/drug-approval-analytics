@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Sunday, August 15th 2021, 2:20:27 am                             #
-# Modified : Monday, August 16th 2021, 9:50:25 am                             #
+# Modified : Tuesday, August 17th 2021, 7:09:32 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -20,7 +20,7 @@
 # =========================================================================== #
 
 from .connect import PGConnectionPool
-from src.application.config import DBCredentials
+from src.infrastructure.data.config import DBCredentials
 from src.infrastructure.data.connect import Connection
 from .access import PGDao
 # --------------------------------------------------------------------------- #

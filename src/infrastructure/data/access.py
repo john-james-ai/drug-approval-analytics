@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Saturday, August 14th 2021, 10:11:57 pm                          #
-# Modified : Monday, August 16th 2021, 3:37:25 am                             #
+# Modified : Tuesday, August 17th 2021, 8:49:25 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -26,9 +26,8 @@ import uuid
 
 import pandas as pd
 
-from .connect import Command
 from .sequel import Sequel, AccessSequel
-from src.application.config import DBCredentials
+from src.infrastructure.data.config import DBCredentials
 from ...utils.logger import exception_handler
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)

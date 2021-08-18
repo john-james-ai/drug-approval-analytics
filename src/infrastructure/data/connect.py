@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Tuesday, August 3rd 2021, 4:47:23 am                             #
-# Modified : Tuesday, August 17th 2021, 4:59:14 am                            #
+# Modified : Wednesday, August 18th 2021, 10:43:53 am                         #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -48,89 +48,10 @@ from sqlalchemy import create_engine
 
 from ...utils.logger import exception_handler
 from .sequel import Sequel
-from src.application.config import DBCredentials
+from src.infrastructure.data.config import DBCredentials
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------------- #
-
-
-class Response:
-    """Class representing responses from database commands."""
-
-    def __init__(self, cursor=None, execute=None, fetchone=None,
-                 fetchall=None, description=None, rowcount: int = 0):
-        self.cursor = cursor
-        self.execute = execute
-        self.fetchall = fetchall
-        self.fetchone = fetchone
-        self.rowcount = rowcount
-        self.description = description
-
-
-# --------------------------------------------------------------------------- #
-class Command:
-    """This class is used to execute commands against the database."""
-
-    def __init__(self):
-        self._cursor = None
-        self._prior_command = None
-
-    @exception_handler()
-    def execute_next(self, cursor) -> Response:
-        response_fetchone = cursor.fetchone()
-        response_description = cursor.description
-        response = Response(cursor=cursor,
-                            fetchone=response_fetchone,
-                            description=response_description)
-
-        return response
-
-    @exception_handler()
-    def execute_one(self, sequel: Sequel, connection) -> Response:
-        cursor = connection.cursor()
-        response_execute = cursor.execute(sequel.cmd, sequel.params)
-        response_description = cursor.description
-        response_rowcount = cursor.rowcount
-        response_fetchone = cursor.fetchone()
-
-        response = Response(cursor=cursor,
-                            execute=response_execute,
-                            fetchone=response_fetchone,
-                            description=response_description,
-                            rowcount=response_rowcount)
-
-        logger.info(sequel.description)
-        return response
-
-    @exception_handler()
-    def execute(self, sequel: Sequel, connection) -> Response:
-        cursor = connection.cursor()
-        response_execute = cursor.execute(sequel.cmd, sequel.params)
-        response_description = cursor.description
-        response_rowcount = cursor.rowcount
-
-        try:
-            response_fetchall = cursor.fetchall()
-        except psycopg2.ProgrammingError:
-            response_fetchall = None
-
-        response = Response(cursor=cursor,
-                            execute=response_execute,
-                            fetchall=response_fetchall,
-                            description=response_description,
-                            rowcount=response_rowcount)
-        cursor.close()
-        logger.info(sequel.description)
-        return response
-
-    @exception_handler()
-    def execute_ddl(self, sequel: Sequel, connection) -> None:
-        """Processes SQL DDL commands from file."""
-
-        with connection.cursor() as cursor:
-            cursor.execute(open(sequel.params, "r").read())
-        cursor.close()
-        logger.info(sequel.description)
 
 
 # --------------------------------------------------------------------------- #
@@ -157,7 +78,7 @@ class AbstractConnectionPool(ABC):
 
     @staticmethod
     @abstractmethod
-    def return_connection(connection) -> None:
+    def close(connection) -> None:
         """Returns a connection to the connection pool if implemented."""
         pass
 
@@ -208,11 +129,11 @@ class PGConnectionPool(AbstractConnectionPool):
 
     @staticmethod
     @exception_handler()
-    def return_connection(connection) -> None:
-        PGConnectionPool.__connection_pool.putconn(connection)
+    def close(connection) -> None:
         name = connection.info.dsn_parameters['dbname']
         logger.info(
             "Returning connection to {} connection pool.".format(name))
+        PGConnectionPool.__connection_pool.putconn(connection)
 
     @staticmethod
     @exception_handler()
@@ -270,8 +191,8 @@ class SAConnectionPool(AbstractConnectionPool):
 
     @staticmethod
     @exception_handler()
-    def return_connection(connection) -> None:
-        connection.dispose()
+    def close(connection) -> None:
+        connection.close()
         logger.info(
             "Returned connection to {} connection pool.".format(
                 SAConnectionPool.__class__.__name__,))
@@ -286,7 +207,7 @@ class SAConnectionPool(AbstractConnectionPool):
 
 
 # --------------------------------------------------------------------------- #
-#                          CONNECTION POOL CLASS                              #
+#                            CONNECTION CLASS                                 #
 # --------------------------------------------------------------------------- #
 
 
@@ -303,55 +224,65 @@ class Connection:
         DatabaseError if database does not exist.
     """
 
-    def __init__(self, credentials: DBCredentials) -> None:
-        self._connection_pool = PGConnectionPool.initialize(credentials)
-        self._connection = None
-        self._autocommit = True
+    def __init__(self, credentials: DBCredentials, autocommit: bool = True, postgres: bool = True) -> None:
+        self._credentials = credentials
+        self._autocommit = autocommit
+        self._postgres = postgres
+
+        if postgres:
+            PGConnectionPool.initialize(credentials)
+            self._connection = self._get_connection(autocommit)
+        else:
+            SAConnectionPool.initialize(credentials)
+            self._connection = self._get_connection()
 
     def __del__(self):
-        self._connection_pool.return_connection(self._connection)
+        self.close()
 
-    def begin_transaction(self):
-        self._autocommit = False
-        self.open_connection()
+    def __enter__(self):
+        self.begin_transaction()
+        return self
 
-    def end_transaction(self):
+    def __exit__(self, type, value, traceback):
         self.commit()
 
-    def open_connection(self) -> None:
-        if self._connection is None or self._connection.closed:
-            self._connection = self._connection_pool.get_connection()
-        self._connection.set_session(autocommit=self._autocommit)
+    def _get_connection(self, autocommit=True):
+        if self._postgres:
+            connection = PGConnectionPool.get_connection()
+            connection.set_session(autocommit=autocommit)
 
-    def close_connection(self):
-        self._connection.return_connection(self._connection)
+        else:
+            connection = SAConnectionPool.get_connection()
+        return connection
+
+    def begin_transaction(self):
+        self.close()
+        self._connection = self._get_connection(autocommit=False)
 
     def commit(self):
         self._connection.commit()
+
+    def close(self):
+        if self._connection is not None:
+            if self._postgres:
+                PGConnectionPool.close(self._connection)
+            else:
+                SAConnectionPool.close(self._connection)
 
     def rollback(self):
         self._connection.rollback()
 
     @property
-    def autocommit(self) -> bool:
-        return self._autocommit
+    def dbname(self):
+        return self._credentials.dbname
 
-    @autocommit.setter
-    def autocommit(self, autocommit) -> None:
-        self._autocommit = autocommit
-        if not self.closed:
-            self._connection.set_session(autocommit=self._autocommit)
+    @property
+    def user(self):
+        return self._credentials.user
 
     @property
     def cursor(self):
-        return self._connection.cursor
-
-    @property
-    def closed(self):
-        if self._connection:
-            if self._connection.closed:
-                return True
-            else:
-                return False
+        if self._postgres:
+            return self._connection.cursor
         else:
-            return True
+            return self._connection.connect()

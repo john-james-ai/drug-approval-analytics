@@ -12,13 +12,15 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Thursday, July 15th 2021, 5:47:58 pm                             #
-# Modified : Tuesday, August 17th 2021, 5:31:05 am                            #
+# Modified : Wednesday, August 18th 2021, 7:24:09 am                          #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
 # Copyright: (c) 2021 nov8.ai                                                 #
 # =========================================================================== #
+# %%
 import os
+from copy import copy, deepcopy
 import logging
 from configparser import ConfigParser
 # --------------------------------------------------------------------------- #
@@ -156,11 +158,11 @@ class DBCredentials:
     def __getitem__(self, key):
         return self._credentials[key]
 
-    def create(self, name: str, user: str, password: str,
+    def create(self, user: str, password: str,
                host: str = 'localhost', dbname: str = 'rx2m',
                port: int = 5432) -> None:
         config = Config(self._filepath)
-        section = name
+        section = self._format_section_name(user, dbname)
         params = {}
         params['user'] = user
         params['password'] = password
@@ -170,15 +172,18 @@ class DBCredentials:
         config.set_section(section=section, params=params)
         self._credentials = config.get_section(section=section)
 
-    def read(self, name: str) -> dict:
-        self.load(name)
+    def read(self, user: str, dbname: str) -> dict:
+        section = self._format_section_name(user, dbname)
+        self.load(section)
         return self._credentials
 
-    def delete(self, name: str) -> None:
-        Config(self._filepath).delete_section(name)
+    def delete(self, user: str, dbname: str) -> None:
+        section = self._format_section_name(user, dbname)
+        Config(self._filepath).delete_section(section)
 
-    def get(self, name: str):
-        self._credentials = Config(self._filepath).get_section(name)
+    def get(self, user: str, dbname: str):
+        section = self._format_section_name(user, dbname)
+        self._credentials = Config(self._filepath).get_section(section)
         return self
 
     @property
@@ -200,6 +205,9 @@ class DBCredentials:
     @property
     def port(self):
         return self._credentials['port']
+
+    def _format_section_name(self, user: str, dbname: str):
+        return user + "_" + dbname
 
 
 # ----------------------------------------------------------------------------#
@@ -232,7 +240,11 @@ class DataSourceConfig:
 #                           CONFIGURATIONS                                    #
 # ----------------------------------------------------------------------------#
 # Database credentials
-pg_login = DBCredentials().load('postgres')
-rx2m_login = DBCredentials().load('rx2m')
-test_login = DBCredentials().load('test')
-aact_login = DBCredentials().load('AACT')
+pg_pg_login = DBCredentials().get('postgres', 'postgres')
+pg_rx2m_login = DBCredentials().get('postgres', 'rx2m')
+j2_pg_login = DBCredentials().get('j2', 'postgres')
+j2_rx2m_login = DBCredentials().get('j2', 'rx2m')
+aact_login = DBCredentials().get('postgres', 'AACT')
+
+
+# %%

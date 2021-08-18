@@ -12,7 +12,7 @@
 # URL      : https://github.com/john-james-sf/drug-approval-analytics         #
 # --------------------------------------------------------------------------  #
 # Created  : Saturday, July 31st 2021, 3:44:38 am                             #
-# Modified : Monday, August 16th 2021, 7:40:49 am                             #
+# Modified : Tuesday, August 17th 2021, 7:09:32 am                            #
 # Modifier : John James (john.james@nov8.ai)                                  #
 # --------------------------------------------------------------------------- #
 # License  : BSD 3-clause "New" or "Revised" License                          #
@@ -29,7 +29,7 @@ import pandas as pd
 from ..platform.database.connect import PGConnectionPool
 from ..platform.database.context import PGDao
 from ..platform.database.connect import ConnectionFactory
-from ..platformsrc.application.config import rx2m_login, DBCredentials
+from ..platformsrc.infrastructure.data.config import rx2m_login, DBCredentials
 # --------------------------------------------------------------------------- #
 logger = logging.getLogger(__name__)
 
